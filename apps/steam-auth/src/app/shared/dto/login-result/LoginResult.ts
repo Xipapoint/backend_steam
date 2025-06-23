@@ -1,0 +1,1 @@
+export type LoginResult = boolean | {success: boolean; guardState: "SGInput"};

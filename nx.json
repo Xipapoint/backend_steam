@@ -37,7 +37,7 @@
       "options": {
         "targetName": "test"
       },
-      "exclude": ["apps/steam-auth-e2e/**/*"]
+      "exclude": ["apps/steam-auth-e2e/**/*", "apps/trade-e2e/**/*"]
     }
   ]
 }
