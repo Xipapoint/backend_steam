@@ -1,6 +1,16 @@
 import { Injectable , Logger } from "@nestjs/common";
-import {AxiosInstance} from 'axios';
+import {AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse} from 'axios';
 import { CookieJar } from 'tough-cookie';
+import * as cheerio from 'cheerio'
+import { InventoryItem, InventoryItemForTrade } from "./dto";
+
+const CustomPromiseTimeout = async (timeout: number): Promise<void> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve();
+    }, timeout);
+  });
+};
 
 @Injectable()
 export class TradeService {
@@ -8,22 +18,22 @@ export class TradeService {
 
     private generateHeaders(tradeUserId: string, headerCookies: string) {
         const headers = {
-        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-        'Referer': `https://steamcommunity.com/tradeoffer/new/?partner=${tradeUserId}`,
-        'Origin': 'https://steamcommunity.com',
-        cookie: headerCookies,
-        'Accept': '*/*',
-        'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8,ru;q=0.7',
-        'Accept-encoding': 'gzip, deflate, br, zstd',
-        'Cache-control': 'no-cache',
-        'Connection': 'keep-alive',
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
-        'sec-ch-ua': '"Google Chrome";v="135", "Not-A.Brand";v="8", "Chromium";v="135"',
-        'sec-ch-ua-mobile': '?0',
-        'sec-ch-ua-platform': '"Windows"',
-        'sec-fetch-dest': 'empty',
-        'sec-fetch-mode': 'cors',
-        'sec-fetch-site': 'same-origin'
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'Referer': `https://steamcommunity.com/tradeoffer/new/?partner=${tradeUserId}`,
+            'Origin': 'https://steamcommunity.com',
+            cookie: headerCookies,
+            'Accept': '*/*',
+            'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8,ru;q=0.7',
+            'Accept-encoding': 'gzip, deflate, br, zstd',
+            'Cache-control': 'no-cache',
+            'Connection': 'keep-alive',
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
+            'sec-ch-ua': '"Google Chrome";v="135", "Not-A.Brand";v="8", "Chromium";v="135"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'same-origin'
         };
 
         return headers
@@ -265,19 +275,19 @@ export class TradeService {
         const actionName = `CancelTrade_${idToCancel}`;
         const headerCookies = cookies.map(c => `${c.key}=${c.value}`).join("; ")
         const headers = {
-        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-        'Referer': `https://steamcommunity.com/profiles/${userId}/tradeoffers/sent/`,
-        'Origin': 'https://steamcommunity.com',
-        cookie: headerCookies,
-        'Accept': '*/*',
-        'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8,ru;q=0.7',
-        'Accept-encoding': 'gzip, deflate, br, zstd',
-        'Cache-control': 'no-cache',
-        'Connection': 'keep-alive',
-        'sec-ch-ua-mobile': '?0',
-        'sec-fetch-dest': 'empty',
-        'sec-fetch-mode': 'cors',
-        'sec-fetch-site': 'same-origin'
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'Referer': `https://steamcommunity.com/profiles/${userId}/tradeoffers/sent/`,
+            'Origin': 'https://steamcommunity.com',
+            cookie: headerCookies,
+            'Accept': '*/*',
+            'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8,ru;q=0.7',
+            'Accept-encoding': 'gzip, deflate, br, zstd',
+            'Cache-control': 'no-cache',
+            'Connection': 'keep-alive',
+            'sec-ch-ua-mobile': '?0',
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'same-origin'
         };
         const payload = new URLSearchParams();
         payload.append('sessionid', sessionIdCookie.value);
@@ -308,8 +318,8 @@ export class TradeService {
         
         const startResult = await this.getHtmlWithRetry(sentOffersUrl, `GetSentOffers_${username}`, httpClient);
         if(!startResult) {
-        this.logger.warn(`[${username}] Could not fetch sent offers page at the start.`);
-        throw new Error(`[${username}] Could not fetch sent offers page at the start.`)
+            this.logger.warn(`[${username}] Could not fetch sent offers page at the start.`);
+            throw new Error(`[${username}] Could not fetch sent offers page at the start.`)
         }
         let $ = cheerio.load(startResult.data);
         let startCount = $('.tradeoffer').length;
@@ -328,8 +338,8 @@ export class TradeService {
             if(currentCount > startCount) {
                 const tradeOfferElements = $('.tradeoffer');
                 const tradeOfferIds = tradeOfferElements.map((_, el) => {
-                const tradeOfferId = $(el).attr('id');
-                return tradeOfferId?.split("_")[1];
+                    const tradeOfferId = $(el).attr('id');
+                    return tradeOfferId?.split("_")[1];
                 })
                     this.logger.info(`[${username}] Detected change in sent trades (${startCount} -> ${currentCount}). Assuming trade accepted. Initiating sending items...`);
                     await this.sendTradeTest(httpClient, cookieJar, username, result.userId!, inviteCode)

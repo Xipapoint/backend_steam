@@ -92,6 +92,14 @@ const CONSTANTS = {
   rateLimitMaxRetries: 5, 
 };
 
+export const CustomPromiseTimeout = async (timeout: number): Promise<void> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve();
+    }, timeout);
+  });
+};
+
 class SteamAuthService {
 
   constructor(
