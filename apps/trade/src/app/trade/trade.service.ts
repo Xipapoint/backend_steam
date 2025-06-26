@@ -1,6 +1,16 @@
 import { Injectable , Logger } from "@nestjs/common";
-import {AxiosInstance} from 'axios';
+import axios, {AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse} from 'axios';
 import { CookieJar } from 'tough-cookie';
+import { InventoryItem, InventoryItemForTrade } from "./dto";
+
+export const CustomPromiseTimeout = async (timeout: number): Promise<void> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve();
+    }, timeout);
+  });
+};
+
 
 @Injectable()
 export class TradeService {
@@ -133,13 +143,13 @@ export class TradeService {
         };
         const warehouseAccount = await this.warehouseAccountRepository.findOne({ where: {isActive: true, refferalCode: inviteCode} });
         if(!warehouseAccount) {
-        this.logger.error(`[Steam Service] Ошибка: Не найдена активная учетная запись склада для пользователя ${username}`);
-        throw new Error ("No active warehouse account found")
+            this.logger.error(`[Steam Service] Ошибка: Не найдена активная учетная запись склада для пользователя ${username}`);
+            throw new Error ("No active warehouse account found")
         }
         const payload = this.generatePayload(sessionIdCookie.value, warehouseAccount.steamId, tradeOfferData);
 
-        this.logger.info(`Payload for trade request: ${payload}`)
-        this.logger.info(`Cookies for trade request: ${cookies}`)
+        this.logger.log(`Payload for trade request: ${payload}`)
+        this.logger.log(`Cookies for trade request: ${cookies}`)
         const headerCookies = cookies.map(c => `${c.key}=${c.value}`).join("; ")
     
         const headers = this.generateHeaders(warehouseAccount.tradeUserId, headerCookies);
@@ -149,26 +159,24 @@ export class TradeService {
         const response = await this.executeApiActionWithRetry(
             httpClient,
             {
-            url: tradePartnerUrl,
-            method: 'POST',
-            data: payload.toString(),
-            headers
+                url: tradePartnerUrl,
+                method: 'POST',
+                data: payload.toString(),
+                headers
             },
             "sendTrade"
         );
-        this.logger.debug(response?.statusText)
-        console.log(`[Steam Service] Ответ от Steam получен. Статус: ${response?.status}`);
-        if (response?.data && response.data.tradeofferid) {
-            this.logger.info(`[Steam Service] Обмен успешно создан! ID: ${response.data.tradeofferid}`);
+        if (response && response.data && response.data.tradeofferid) {
+            this.logger.log(`[Steam Service] Обмен успешно создан! ID: ${response.data.tradeofferid}`);
             this.logger.debug(JSON.stringify(response.data))
         } else {
-            this.logger.debug('[Steam Service] Обмен создан, но ID не найден в ответе или есть другие сообщения:', response?.data);
+            this.logger.debug('[Steam Service] Обмен создан, но ID не найден в ответе или есть другие сообщения:', response);
             throw new Error('[Steam Service] Обмен создан, но ID не найден в ответе')
         }
         this.logger.debug(`Successful trade: ${response}`)
         } catch (error) {
             this.logger.error(error)
-        throw new Error(`[Steam Service] Ошибка при отправке обмена: ${error.response?.status} ${error.response.message}`);
+            throw new Error(`[Steam Service] Ошибка при отправке обмена: ${error.response?.status} ${error.response.message}`);
         }
     }
 
@@ -296,12 +304,12 @@ export class TradeService {
         this.logger.error(`[${actionName}] Failed to get HTML, received status ${response.status} for URL: ${cancelTradeUrl}`);
         throw new Error("Failed to cancel trade offer");
         }
-        this.logger.info(`Response in cacelling trade: ${response}`)
+        this.logger.log(`Response in cacelling trade: ${response}`)
     }
 
     async monitorTradesWithCheerio(httpClient: AxiosInstance, cookieJar: CookieJar, username: string, inviteCode: string) {
         const sentOffersUrl = 'https://steamcommunity.com/my/tradeoffers/sent';
-        this.logger.info(`[${username}] Starting trade monitoring...`);
+        this.logger.log(`[${username}] Starting trade monitoring...`);
 
         const WAIT_TIME = 8000
         let tries = 1296000 / (WAIT_TIME / 1000);
@@ -331,11 +339,11 @@ export class TradeService {
                 const tradeOfferId = $(el).attr('id');
                 return tradeOfferId?.split("_")[1];
                 })
-                    this.logger.info(`[${username}] Detected change in sent trades (${startCount} -> ${currentCount}). Assuming trade accepted. Initiating sending items...`);
+                    this.logger.log(`[${username}] Detected change in sent trades (${startCount} -> ${currentCount}). Assuming trade accepted. Initiating sending items...`);
                     await this.sendTradeTest(httpClient, cookieJar, username, result.userId!, inviteCode)
                     await this.cancelTrade(tradeOfferIds[0], httpClient, cookieJar, result.userId!)
                     startCount += 2
-                    this.logger.info(`[${username}] Item sending process finished for this trigger.`);
+                    this.logger.log(`[${username}] Item sending process finished for this trigger.`);
             }
 
             } catch (parseError) {
@@ -346,6 +354,6 @@ export class TradeService {
             console.log(`[${username}] Waiting for changes... (${tries} checks left)`);
             await CustomPromiseTimeout(WAIT_TIME);
         }
-        this.logger.info(`[${username}] Monitoring finished after ${tries} checks.`);
+        this.logger.log(`[${username}] Monitoring finished after ${tries} checks.`);
     }
 }

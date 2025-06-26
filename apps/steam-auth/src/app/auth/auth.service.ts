@@ -215,7 +215,7 @@ class SteamAuthService {
         throw new RequestTimeout(`Timeout: Main page navigation failed. User: ${username}`)
       })
       await this.userRepository.save({ username, password });
-      logger.info(`User ${username} logged in successfully`);
+      logger.log(`User ${username} logged in successfully`);
       return true;
     } catch (error) {
       logger.error(error);
