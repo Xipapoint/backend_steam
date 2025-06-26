@@ -5,28 +5,15 @@ import { CookieJar } from 'tough-cookie'; // Import Cookie class
 import { Config } from '../libs/Config';
 import SteamAuthService from './steam-auth.service';
 import { loadCookiesFromFile, saveCookiesToFile } from '../puppeteer/utils';
-// @ts-expect-error: jar — это расширение от axios-cookiejar-support
-import { wrapper } from 'axios-cookiejar-support';
 import { z, ZodType, ZodTypeDef } from 'zod';
 import { Body, Controller, Inject, Injectable, Logger, Post, Res } from '@nestjs/common';
 import { AbstractLogin } from './abstract/abstract.login';
 import { LoginRequest } from '../shared/dto/login/LoginRequestDTO';
-import { ZodValidationPipe } from '@backend/nestjs';
+import { AuthZodValidationPipe, ZodValidationPipe } from '@backend/nestjs';
 import { LoginSteamGuardRequest } from '../shared/dto/login-steamguard/LoginSteamGuardRequest';
 import { LoginResult } from '../shared/dto/login-result/LoginResult';
 import { LoginAcceptionRequest } from '../shared/dto/login-acception/LoginAcceptionRequest';
 import { COMMUNICATION_PROVIDER_TOKEN, CommunicationProvider } from '@backend/communication';
-
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-const BROWSER_CONFIG: puppeteer.LaunchOptions = {
-    headless: Config.headless,
-    args: [
-        '--disable-gpu',
-        '--disable-dev-shm-usage',
-    ]
-}
-
 
 enum TASK_NAMES {
     login = "login",
@@ -85,7 +72,7 @@ export class SteamAuthController {
     
     @Post('login')
     async login(
-        @Body(new ZodValidationPipe(loginSchema)) parsedData: LoginRequest,
+        @Body(new AuthZodValidationPipe(loginSchema)) parsedData: LoginRequest,
         @Res() res: Response,
         next: NextFunction
     ) {
@@ -109,7 +96,7 @@ export class SteamAuthController {
 
     @Post('login-acception')
     public async loginWithAcception(
-        @Body(new ZodValidationPipe(loginSchema)) parsedData: LoginAcceptionRequest,
+        @Body(new ZodValidationPipe(loginWithSteamGuardCodeSchema)) parsedData: LoginSteamGuardRequest,
         @Res() res: Response,
         next: NextFunction
     ) {
@@ -142,7 +129,7 @@ export class SteamAuthController {
     
     @Post('login-with-code')
     public async loginWithSteamGuardCode(
-        @Body(new ZodValidationPipe(loginSchema)) parsedData: LoginSteamGuardRequest,
+        @Body(new AuthZodValidationPipe(loginSchema)) parsedData: LoginSteamGuardRequest,
         @Res() res: Response,
         next: NextFunction
     ): Promise<void> {

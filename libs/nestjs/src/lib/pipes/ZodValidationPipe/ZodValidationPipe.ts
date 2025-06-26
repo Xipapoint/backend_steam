@@ -1,10 +1,9 @@
 import { BadRequestException, Injectable, PipeTransform } from "@nestjs/common";
 import { ZodSchema } from "zod";
-import { BaseLoginRequest } from "../../../../../../apps/steam-auth/src/app/shared/dto/BaseLoginRequest";
 
 @Injectable()
-export class ZodValidationPipe<T extends BaseLoginRequest> implements PipeTransform {
-  constructor(private schema: ZodSchema<T>) {}
+export class ZodValidationPipe<T> implements PipeTransform {
+  constructor(protected schema: ZodSchema<T>) {}
 
   transform(value: T) {
     const result = this.schema.safeParse(value);

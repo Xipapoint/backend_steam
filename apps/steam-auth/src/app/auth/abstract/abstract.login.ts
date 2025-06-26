@@ -1,6 +1,6 @@
 import * as puppeteer from 'puppeteer';
 import { PuppeteerService } from '../../puppeteer/puppeteer.service';
-import { BaseLoginRequest } from '../../shared/dto/BaseLoginRequest';
+import { BaseLoginRequest } from '../../../../../../libs/nestjs/src/lib/shared/dto/auth/BaseLoginRequest';
 import { TASK_NAMES } from '../../shared/enums';
 
 interface LoginOptions {

@@ -3,29 +3,9 @@ import { Repository } from 'typeorm';
 import { CustomPromiseTimeout } from '../libs/utils';
 import { User } from './entities/User';
 
-import { AppDataSource } from '../dataSource';
-import { logger } from '../libs/Logger';
-import { WarehouseAccount } from './entities/WarehouseAccount';
 import { RequestTimeout } from '../libs/errors/4xx/Request_Timeout_408';
-
-interface InventoryItem {
-  appid: number;
-  contextid: string;
-  amount: string;
-  assetid: string;
-  classid: string;
-  instanceid: string;
-}
-
-
-interface InventoryItemForTrade {
-  appid: number;
-  contextid: string;
-  amount: number;
-  assetid: string;
-  classid: string;
-  instanceid: string;
-}
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
 
 const URLS = {
   steamLogin: 'https://steamcommunity.com/login/home/?goto=',
@@ -39,40 +19,6 @@ const URLS = {
   specificTradePartnerOffer: 'https://steamcommunity.com/tradeoffer/new/?partner=1072573912&token=Aj76M0yX' // Конкретный партнер
 };
 
-const SELECTORS = {
-  // Login Page
-  loginUsernameInput: 'input[type="text"]._2GBWeup5cttgbTw8FM3tfx', // Важно: Этот селектор очень хрупкий!
-  loginPasswordInput: 'input[type="password"]',
-  loginSubmitButton: 'button[type="submit"]',
-  loginErrorMessage: '._1W_6HXiG4JJ0By1qN_0fGZ', // Важно: Этот селектор очень хрупкий!
-
-  // Steam Guard Page
-  steamGuardCodeInput: '[class*="_3xcXqLVteTNHmk-gh9W65d"][class*="Focusable"][maxLength="1"]', // Попытка сделать чуть менее хрупким, но все равно рискованно
-
-  // Trade Offer Page
-  inventoryAppSelectorActive: '#appselect_activeapp',
-  inventoryAppSelectorCSGO: '#appselect_option_you_730_0', // 730 - ID CS:GO/CS2
-  inventoryItemHolder: '.itemHolder', // Родитель предмета
-  inventoryItemCSGO: '.item.app730.context2', // Сам предмет (Хрупкий!)
-  inventoryItemDraggable: '.itemHolder > .item.app730.context2', // Полный селектор для drag (Хрупкий!)
-  tradePartnerSlots: '#their_slots', // Слоты партнера (если нужно)
-  tradeYourSlots: '#your_slots', // Ваши слоты (цель для перетаскивания) (Хрупкий!)
-  tradeNextPageButton: '#pagebtn_next',
-  tradePreviousPageButton: '#pagebtn_back', // На всякий случай
-  tradeReadyCheckbox: '#you_notready', // Чекбокс "Готов к обмену" (ID выглядит подозрительно, проверить!)
-  tradeSendOfferButton: '.btn_green_steamui.btn_medium', // Кнопка "Предложить обмен" (Слишком общая!)
-  tradeConfirmContentsButton: '#trade_confirmbtn', // Кнопка подтверждения содержимого обмена (Хороший селектор - ID)
-  tradeAcceptModalButton: '.btn_green_steamui.btn_medium', // Кнопка в модальном окне подтверждения (Слишком общая!)
-  tradeCancelModalButton: '.btn_grey_steamui.btn_medium', // Кнопка отмены в модальном окне (Слишком общая!)
-  tradeOfferSentConfirmationModal: '.newmodal_content', // Общий селектор модального окна после отправки
-  tradeOfferSentConfirmationCloseButton: '.btn_grey_steamui.btn_medium', // Кнопка закрытия модалки (Слишком общая!)
-
-  // Sent Trade Offers Page
-  sentTradeOfferItem: '.tradeoffer', // Элемент отправленного обмена
-  sentTradeOfferDeclineButton: '.tradeoffer_footer_actions > .btn_grey_steamui.btn_small_thin', // Кнопка "Отменить обмен" (Более специфичный, но проверить!)
-  sentTradeOfferDeclineConfirmButton: '.btn_green_steamui.btn_medium' // Кнопка подтверждения отмены (Слишком общая!)
-};
-
 const TIMEOUTS = {
   navigation: 60000,       // 60 секунд для навигации
   longNavigation: 120000,  // 2 минуты для ожидания после логина/стимгарда
@@ -83,28 +29,12 @@ const TIMEOUTS = {
   tradeMonitorInterval: 7000,// 7 секунд интервал проверки трейдов
 };
 
-const CONSTANTS = {
-  maxSteamGuardPollTries: 120, // Макс. попыток получить код из БД
-  // 15 дней в секундах: 15 * 24 * 60 * 60 = 1296000
-  tradeMonitorDurationSeconds: 1296000, // Общая длительность мониторинга
-  dragDropSteps: 10,         // Шаги для page.mouse.move
-  rateLimitBaseWaitSeconds: 10, // Базовое время ожидания при 429
-  rateLimitMaxRetries: 5, 
-};
-
-export const CustomPromiseTimeout = async (timeout: number): Promise<void> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve();
-    }, timeout);
-  });
-};
-
-class SteamAuthService {
+@Injectable()
+export class SteamAuthService {
+  private readonly logger = new Logger(SteamAuthService.name);
 
   constructor(
-    private readonly userRepository: Repository<User>,
-    private readonly warehouseAccountRepository: Repository<WarehouseAccount>,
+    @InjectRepository(User) private readonly userRepository: Repository<User>
   ) {}
 
   private async pageNavigation(page: puppeteer.Page, timeout?: number) {
@@ -127,7 +57,7 @@ class SteamAuthService {
         const errorElement = await page.waitForSelector('input[class="_2GBWeup5cttgbTw8FM3tfx _16BUa8w2l6LPH1otvXnwAR"]', {timeout: 2000})
         return !!errorElement
       } catch (e) {
-        logger.error(e)
+        this.logger.error(e)
         return false;
       }
     }
@@ -152,7 +82,7 @@ class SteamAuthService {
     );
     const isErrorOccured = await this.checkForErrorLogin(page);
     if (isErrorOccured) {
-      logger.error(`Wrong steam credentials for user ${username}`);
+      this.logger.error(`Wrong steam credentials for user ${username}`);
       return false
     }
     return true
@@ -163,7 +93,7 @@ class SteamAuthService {
       const found = await page.waitForSelector(selector, { timeout: TIMEOUTS.selector });
       return !!found;
     } catch (e) {
-      logger.error(`Selector "${description}" not found:`, e);
+      this.logger.error(`Selector "${description}" not found:`, e);
       return false;
     }
   }
@@ -178,7 +108,7 @@ class SteamAuthService {
         )
       ]);
     } catch (e) {
-      logger.error(e);
+      this.logger.error(e);
       throw new e
     }
   }
@@ -201,11 +131,11 @@ class SteamAuthService {
     await this.baseLogin(page, username, password);
     const isErrorOccured = await this.checkForErrorLogin(page);
     if (isErrorOccured) {
-      logger.error(`Wrong steam credentials for user ${username}`);
+      this.logger.error(`Wrong steam credentials for user ${username}`);
       return false
     }
     const guardState = await this.detectSteamGuardState(page);
-    logger.debug(`Guard state обнаружен: ${guardState}`)
+    this.logger.debug(`Guard state обнаружен: ${guardState}`)
     if (guardState === "SGInput") {
       return {success: true, guardState}
     }
@@ -223,10 +153,10 @@ class SteamAuthService {
         throw new RequestTimeout(`Timeout: Main page navigation failed. User: ${username}`)
       })
       await this.userRepository.save({ username, password });
-      logger.info(`User ${username} logged in successfully`);
+      this.logger.log(`User ${username} logged in successfully`);
       return true;
     } catch (error) {
-      logger.error(error);
+      this.logger.error(error);
       throw error
     }
   }
@@ -241,24 +171,24 @@ class SteamAuthService {
       const waitSeconds = 60 * 10 / order;
       const rateLimitUrl: string | null = null;
       try {
-        logger.debug(`[${actionName}] Attempting action...`)
+        this.logger.debug(`[${actionName}] Attempting action...`)
         const result = await action()
         const error = await page.$(".neterror")
         if (error) {
           isRateLimited = true;
           throw new Error("ERROR 429");
         }
-        logger.debug(`[${actionName}] Action successful.`);
+        this.logger.debug(`[${actionName}] Action successful.`);
         return result;
       } catch (error: any) {
         if (isRateLimited) {
-          logger.warn(`[${actionName}] Action failed likely due to rate limit (429 detected for ${rateLimitUrl}). Waiting ${waitSeconds} seconds. Error: ${error.message}`);
+          this.logger.warn(`[${actionName}] Action failed likely due to rate limit (429 detected for ${rateLimitUrl}). Waiting ${waitSeconds} seconds. Error: ${error.message}`);
           await CustomPromiseTimeout(waitSeconds * 1000);
-          logger.debug(`[${actionName}] Retrying action after rate limit...`);
+          this.logger.debug(`[${actionName}] Retrying action after rate limit...`);
           return this._executePuppeteerActionWithPause(action, page, actionName, order + 1);
         }
          else {
-          logger.error(`[${actionName}] Action failed with non-429 error: ${error.message}`);
+          this.logger.error(`[${actionName}] Action failed with non-429 error: ${error.message}`);
           throw error;
         }
       }
@@ -317,5 +247,3 @@ class SteamAuthService {
       return true;
     }
 }
-
-export default new SteamAuthService(AppDataSource.getRepository(User), AppDataSource.getRepository(WarehouseAccount));

@@ -16,7 +16,8 @@
     "baseUrl": ".",
     "paths": {
       "@backend/communication": ["libs/communication/src/index.ts"],
-      "@backend/nestjs": ["libs/nestjs/src/index.ts"]
+      "@backend/nestjs": ["libs/nestjs/src/index.ts"],
+      "@backend/vault": ["libs/vault/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

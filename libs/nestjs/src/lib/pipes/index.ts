@@ -1,1 +1,1 @@
-export * from './ZodValidationPipe/ZodValidationPipe'
+export * from './ZodValidationPipe'
