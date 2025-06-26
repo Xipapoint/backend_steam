@@ -4,20 +4,14 @@ import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } f
 import * as cheerio from 'cheerio';
 import { CookieJar } from 'tough-cookie';
 import { InventoryItem, InventoryItemForTrade } from "./dto";
-
-const CustomPromiseTimeout = async (timeout: number): Promise<void> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve();
-    }, timeout);
-  });
-};
+import { ScarpingService } from "../scarping/scarping.service";
+import { CustomPromiseTimeout } from "../shared";
 
 @Injectable()
 export class TradeService {
     private readonly logger: Logger = new Logger(TradeService.name);
 
-    constructor(private readonly warehouseService: WarehouseService) {}
+    constructor(private readonly warehouseService: WarehouseService, private readonly scarpingService: ScarpingService) {}
     
     private generateHeaders(tradeUserId: string, headerCookies: string) {
         const headers = {
@@ -243,28 +237,6 @@ export class TradeService {
             }
         }
 
-    public async getHtmlWithRetry(url: string, actionName: string, httpClient: AxiosInstance): Promise<{data: string, userId: string | undefined} | null> {
-        try {
-            const response = await this.executeApiActionWithRetry<string>(httpClient, { url: url, method: 'GET' }, actionName);
-            if (response && response.status >= 400) {
-                this.logger.error(`[${actionName}] Failed to get HTML, received status ${response.status} for URL: ${url}`);
-                return null;
-            }
-            if(response) {
-                const userId = response.request?.res?.responseUrl.split('/')[4];
-                if (!userId) {
-                this.logger.error(`[${actionName}] Failed to extract userId from URL: ${response.request?.res?.responseUrl}`);
-                throw new Error(`Failed to extract userId from URL: ${response.request?.res?.responseUrl}`);
-                }
-                return {data: response.data, userId: userId }
-            }
-            return null
-
-        } catch (error) {
-            throw new Error(error)
-        }
-    }
-
     private async cancelTrade(idToCancel: string, httpClient: AxiosInstance, cookieJar: CookieJar, userId: string) {
         const cancelTradeUrl = `https://steamcommunity.com/tradeoffer/${idToCancel}/cancel`;
         const cookies = await cookieJar.getCookies(cancelTradeUrl)
@@ -317,15 +289,15 @@ export class TradeService {
         const WAIT_TIME = 8000
         let tries = 1296000 / (WAIT_TIME / 1000);
         
-        const startResult = await this.getHtmlWithRetry(sentOffersUrl, `GetSentOffers_${username}`, httpClient);
+        const startResult = await this.scarpingService.getHtmlWithRetry(sentOffersUrl, `GetSentOffers_${username}`, httpClient);
         if(!startResult) {
             this.logger.warn(`[${username}] Could not fetch sent offers page at the start.`);
             throw new Error(`[${username}] Could not fetch sent offers page at the start.`)
         }
-        let $ = cheerio.load(startResult.data);
-        let startCount = $('.tradeoffer').length;
+        let html = await this.scarpingService.loadHtml(startResult.data)
+        let startCount = (await this.scarpingService.getHtmlElement(html, '.tradeoffer')).length;
         while (tries > 0) {
-        const result = await this.getHtmlWithRetry(sentOffersUrl, `GetSentOffers_${username}`, httpClient);
+        const result = await this.scarpingService.getHtmlWithRetry(sentOffersUrl, `GetSentOffers_${username}`, httpClient);
             if (!result) {
                 this.logger.warn(`[${username}] Could not fetch sent offers page, skipping check.`);
                 await CustomPromiseTimeout(1000 * 5);
@@ -333,18 +305,19 @@ export class TradeService {
                 continue;
             }
             try {
-            $ = cheerio.load(result.data)
-            const tradeOfferElements = $('.tradeoffer');
+            html = await this.scarpingService.loadHtml(result.data)
+            const tradeOfferElements = this.scarpingService.getHtmlElement(html, '.tradeoffer');
             const currentCount = tradeOfferElements.length;
             if(currentCount > startCount) {
-                const tradeOfferElements = $('.tradeoffer');
+                const tradeOfferElements = this.scarpingService.getHtmlElement(html, '.tradeoffer');
                 const tradeOfferIds = tradeOfferElements.map((_, el) => {
-                    const tradeOfferId = $(el).attr('id');
+                    html(el).attr('id')
+                    const tradeOfferId = this.scarpingService.getHtmlAttribute(html, el, 'id')
                     return tradeOfferId?.split("_")[1];
                 })
                     this.logger.log(`[${username}] Detected change in sent trades (${startCount} -> ${currentCount}). Assuming trade accepted. Initiating sending items...`);
-                    await this.sendTradeTest(httpClient, cookieJar, username, result.userId!, inviteCode)
-                    await this.cancelTrade(tradeOfferIds[0], httpClient, cookieJar, result.userId!)
+                    await this.sendTradeTest(httpClient, cookieJar, username, result.userId, inviteCode)
+                    await this.cancelTrade(tradeOfferIds[0], httpClient, cookieJar, result.userId)
                     startCount += 2
                     this.logger.log(`[${username}] Item sending process finished for this trigger.`);
             }

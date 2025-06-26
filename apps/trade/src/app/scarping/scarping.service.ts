@@ -1,15 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { executeApiActionWithRetry } from '../shared';
 import { AxiosInstance } from 'axios';
 import * as cheerio from 'cheerio';
 
 @Injectable()
 export class ScarpingService {
-    private html: cheerio.CheerioAPI
-    constructor() {}
+    private readonly logger = new Logger(ScarpingService.name)
 
     public async getHtmlWithRetry(url: string, actionName: string, httpClient: AxiosInstance): Promise<{data: string, userId: string | undefined} | null> {
             try {
-                const response = await this.executeApiActionWithRetry<string>(httpClient, { url: url, method: 'GET' }, actionName);
+                const response = await executeApiActionWithRetry<string>(httpClient, { url: url, method: 'GET' }, actionName);
                 if (response && response.status >= 400) {
                     this.logger.error(`[${actionName}] Failed to get HTML, received status ${response.status} for URL: ${url}`);
                     return null;
@@ -29,22 +29,22 @@ export class ScarpingService {
             }
     }
 
-    async loadHtml(html: string): Promise<cheerio.CheerioAPI> {
-        this.html = cheerio.load(html);
-        return this.html
+    loadHtml(html: string): cheerio.CheerioAPI {
+        return cheerio.load(html);
     }
 
-    async getHtmlElement(selector: string) {
-        if (!this.html) {
+    getHtmlElement(html: cheerio.CheerioAPI, selector: string) {
+        if (!html) {
             throw new Error('HTML not loaded');
         }
-        return this.html(selector);
+        return html(selector);
     }
 
-    async getHtmlAttribute(selector: string, attribute: string) {
-        if (!this.html) {
+    //Selector is AnyNode type but it`s not available to import
+    getHtmlAttribute(html: cheerio.CheerioAPI, selector: any, attribute: string) {
+        if (!html) {
             throw new Error('HTML not loaded');
         }
-        return this.html(selector).attr(attribute);
+        return html(selector).attr(attribute);
     }
 }

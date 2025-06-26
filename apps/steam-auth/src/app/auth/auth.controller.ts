@@ -1,10 +1,7 @@
 import { AxiosInstance } from 'axios';
-import { NextFunction, Request, Response } from 'express'; // Добавлен NextFunction
-import * as puppeteer from 'puppeteer';
-import { CookieJar } from 'tough-cookie'; // Import Cookie class
-import { Config } from '../libs/Config';
+import { NextFunction, Request, Response } from 'express';
+import { CookieJar } from 'tough-cookie';
 import SteamAuthService from './steam-auth.service';
-import { loadCookiesFromFile, saveCookiesToFile } from '../puppeteer/utils';
 import { z, ZodType, ZodTypeDef } from 'zod';
 import { Body, Controller, Inject, Injectable, Logger, Post, Res } from '@nestjs/common';
 import { AbstractLogin } from './abstract/abstract.login';
@@ -14,6 +11,7 @@ import { LoginSteamGuardRequest } from '../shared/dto/login-steamguard/LoginStea
 import { LoginResult } from '../shared/dto/login-result/LoginResult';
 import { LoginAcceptionRequest } from '../shared/dto/login-acception/LoginAcceptionRequest';
 import { COMMUNICATION_PROVIDER_TOKEN, CommunicationProvider } from '@backend/communication';
+import { AuthUtils } from '../puppeteer/utils';
 
 enum TASK_NAMES {
     login = "login",
@@ -39,17 +37,6 @@ const loginSchema = z
   })
 .strict() as ZodType<LoginRequest, ZodTypeDef, LoginRequest>;
 
-
-
-
-const InitializingNewProcesses: Record<TASK_NAMES, boolean> = {
-    [TASK_NAMES.typeSteamGuardCode]: false,
-    [TASK_NAMES.loginWithAcception]: false,
-    [TASK_NAMES.loginWithCookies]: false,
-    [TASK_NAMES.monitorTrades]: false,
-    [TASK_NAMES.login]: true
-}
-
 type HttpTaskFunction<T> = (
     httpClient: AxiosInstance,
     cookieJar: CookieJar,
@@ -60,12 +47,12 @@ type HttpTaskFunction<T> = (
 @Controller('auth')
 @Injectable()
 export class SteamAuthController {
-    private readonly MAX_RETRIES = 3
     private readonly logger: Logger = new Logger(SteamAuthController.name);
 
     constructor(
         private readonly steamAuthService: SteamAuthService, 
         private readonly abstractLogin: AbstractLogin,
+        private readonly authUtils: AuthUtils,
         @Inject(COMMUNICATION_PROVIDER_TOKEN) private readonly communicationProvider: CommunicationProvider,
     ) {}
 
@@ -106,8 +93,8 @@ export class SteamAuthController {
                     controllerCallback: this.steamAuthService.login.bind(this.steamAuthService),
                     parsedBody: parsedData,
                     taskName: TASK_NAMES.loginWithAcception,
-                    loadCookiesFn: loadCookiesFromFile.bind(this),
-                    saveCookiesFn: saveCookiesToFile.bind(this),
+                    loadCookiesFn: this.authUtils.loadCookiesFromFile.bind(this),
+                    saveCookiesFn: this.authUtils.saveCookiesToFile.bind(this),
                 }
             )
             res.send({success})
@@ -139,7 +126,7 @@ export class SteamAuthController {
                     controllerCallback: this.steamAuthService.login.bind(this.steamAuthService),
                     parsedBody: parsedData,
                     taskName: TASK_NAMES.typeSteamGuardCode,
-                    saveCookiesFn: saveCookiesToFile.bind(this),
+                    saveCookiesFn: this.authUtils.saveCookiesToFile.bind(this),
                     options: { closePage: parsedData.closePage }
                 }
             )
@@ -170,7 +157,6 @@ export class SteamAuthController {
         next: NextFunction
     ): Promise<void> {
         const { username, inviteCode } = req.body;
-        const taskName = 'loginUserWithCookies';
         if(!inviteCode || inviteCode.length === 0)
             res.status(400).send({ success: false, message: "No invite codes provided." });
         try {
@@ -178,8 +164,8 @@ export class SteamAuthController {
                 username, 
                 'monitorTrades', 
                 this.steamAuthService.monitorTradesWithCheerio.bind(this.steamAuthService), 
-                loadCookiesFromFile.bind(this), 
-                saveCookiesToFile.bind(this)
+                this.authUtils.loadCookiesFromFile.bind(this), 
+                this.authUtils.saveCookiesToFile.bind(this)
             );
             res.send({ success: true });
         } catch (error: any) {
