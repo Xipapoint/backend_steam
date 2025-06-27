@@ -1,4 +1,4 @@
-import { AppError } from "../AppError/AppError";
+import { AppError } from "../../AppError/AppError";
 
 export class RequestTimeout extends AppError {
     constructor(message = "Request Timeout") {

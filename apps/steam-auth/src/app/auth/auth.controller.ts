@@ -1,11 +1,10 @@
-import { COMMUNICATION_PROVIDER_TOKEN, CommunicationProvider } from '@backend/communication';
+import { HttpCommunicationProvider } from '@backend/communication';
 import { AuthZodValidationPipe, CatchFilter, ZodValidationPipe } from '@backend/nestjs';
-import { Body, Controller, Inject, Injectable, Logger, Post, Res, UseFilters } from '@nestjs/common';
-import { AxiosInstance } from 'axios';
-import { NextFunction, Response } from 'express';
-import { CookieJar } from 'tough-cookie';
+import { Body, Controller, Injectable, Logger, Post, Res, UseFilters } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Response } from 'express';
 import { z, ZodType, ZodTypeDef } from 'zod';
-import { AuthUtils } from '../puppeteer/utils';
+import { FileCookiePersistenceService } from '../cookies-persistance/CookiesPersistance.service';
 import { LoginAcceptionRequest } from '../shared/dto/login-acception/LoginAcceptionRequest';
 import { LoginResult } from '../shared/dto/login-result/LoginResult';
 import { LoginSteamGuardRequest } from '../shared/dto/login-steamguard/LoginSteamGuardRequest';
@@ -37,13 +36,6 @@ const loginSchema = z
   })
 .strict() as ZodType<LoginRequest, ZodTypeDef, LoginRequest>;
 
-type HttpTaskFunction<T> = (
-    httpClient: AxiosInstance,
-    cookieJar: CookieJar,
-    username: string
-) => Promise<T>;
-
-
 @Controller('auth')
 @Injectable()
 export class SteamAuthController {
@@ -52,8 +44,9 @@ export class SteamAuthController {
     constructor(
         private readonly steamAuthService: SteamAuthService, 
         private readonly abstractLogin: AbstractLogin,
-        private readonly authUtils: AuthUtils,
-        @Inject(COMMUNICATION_PROVIDER_TOKEN) private readonly communicationProvider: CommunicationProvider,
+        private readonly cookiesPersistance: FileCookiePersistenceService,
+        private readonly httpCommunicationProvider: HttpCommunicationProvider,
+        private readonly configService: ConfigService
     ) {}
 
     
@@ -62,9 +55,7 @@ export class SteamAuthController {
     async login(
         @Body(new AuthZodValidationPipe(loginSchema)) parsedData: LoginRequest,
         @Res() res: Response,
-        next: NextFunction
     ) {
-        try {
             const success = await this.abstractLogin.execute<LoginRequest, LoginResult>(
                 {
                     controllerCallback: this.steamAuthService.login.bind(this.steamAuthService),
@@ -77,9 +68,6 @@ export class SteamAuthController {
                 res.send({success}) 
             else
                 res.send(success)
-        } catch (error: any) {
-            next(error)
-        }
     }
 
     @Post('login-acception')
@@ -87,32 +75,24 @@ export class SteamAuthController {
     public async loginWithAcception(
         @Body(new ZodValidationPipe(loginWithSteamGuardCodeSchema)) parsedData: LoginSteamGuardRequest,
         @Res() res: Response,
-        next: NextFunction
     ) {
-        try {
             const success = await this.abstractLogin.execute<LoginAcceptionRequest, LoginResult>(
                 {
                     controllerCallback: this.steamAuthService.login.bind(this.steamAuthService),
                     parsedBody: parsedData,
                     taskName: TASK_NAMES.loginWithAcception,
-                    loadCookiesFn: this.authUtils.loadCookiesFromFile.bind(this),
-                    saveCookiesFn: this.authUtils.saveCookiesToFile.bind(this),
+                    loadCookiesFn: this.cookiesPersistance.loadCookiesFromFile.bind(this),
+                    saveCookiesFn: this.cookiesPersistance.saveCookiesToFile.bind(this),
                 }
             )
             res.send({success})
             if(success) {
-                const tradeTaskFn = (httpClient: AxiosInstance, cookieJar: CookieJar): Promise<void> => {
-                    return this.steamAuthService.monitorTradesWithCheerio(httpClient, cookieJar, username, inviteCode);
-                };
-                this.executeHttpTask(
-                    username,
-                    "monitorTrades",
-                    tradeTaskFn
-                )
+                this.httpCommunicationProvider.sendWithState({
+                    baseUrl: this.configService.getOrThrow<string>('TRADE_SERVICE_URL'),
+                    path: '/monitor-trades',
+                    username: parsedData.username,
+                })
             }
-        } catch (error) {
-            next(error)
-        }
     }
 
     
@@ -121,36 +101,26 @@ export class SteamAuthController {
     public async loginWithSteamGuardCode(
         @Body(new AuthZodValidationPipe(loginSchema)) parsedData: LoginSteamGuardRequest,
         @Res() res: Response,
-        next: NextFunction
     ): Promise<void> {
-        try {
             const success = await this.abstractLogin.execute<LoginSteamGuardRequest, LoginResult>(
                 {
                     controllerCallback: this.steamAuthService.login.bind(this.steamAuthService),
                     parsedBody: parsedData,
                     taskName: TASK_NAMES.typeSteamGuardCode,
-                    saveCookiesFn: this.authUtils.saveCookiesToFile.bind(this),
+                    saveCookiesFn: this.cookiesPersistance.saveCookiesToFile.bind(this),
                     options: { closePage: parsedData.closePage }
                 }
             )
             if(success) {
-                this.logger.log(`[User: ${parsedData.username}] Login successful. Triggering background trade monitoring.`);
-                const tradeTaskFn = (httpClient: AxiosInstance, cookieJar: CookieJar): Promise<void> => {
-                    return this.steamAuthService.monitorTradesWithCheerio(httpClient, cookieJar, username, inviteCode);
-                };
-    
-                this.executeHttpTask(
-                    username, 
-                    'monitorTrades', 
-                    tradeTaskFn
-                );
+                this.httpCommunicationProvider.sendWithState({
+                    baseUrl: this.configService.getOrThrow<string>('TRADE_SERVICE_URL'),
+                    path: '/monitor-trades',
+                    username: parsedData.username,
+                })
             }
 
             res.send({ success });
             return;
-        } catch (error: any) {
-            next(error)
-        }
     }
 
     @Post('login-cookies')
@@ -158,20 +128,13 @@ export class SteamAuthController {
     public async loginUserWithCookies(
         @Body(new AuthZodValidationPipe(loginSchema)) parsedData: LoginSteamGuardRequest,
         res: Response,
-        next: NextFunction
     ): Promise<void> {
-        try {
-            this.executeHttpTask(
-                username, 
-                'monitorTrades', 
-                this.steamAuthService.monitorTradesWithCheerio.bind(this.steamAuthService), 
-                this.authUtils.loadCookiesFromFile.bind(this), 
-                this.authUtils.saveCookiesToFile.bind(this)
-            );
+            this.httpCommunicationProvider.sendWithState({
+                baseUrl: this.configService.getOrThrow<string>('TRADE_SERVICE_URL'),
+                path: '/monitor-trades',
+                username: parsedData.username,
+            })
             res.send({ success: true });
-        } catch (error: any) {
-            next(error)
-        }
     }
 }
 

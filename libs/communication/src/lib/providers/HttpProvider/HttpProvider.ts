@@ -2,20 +2,9 @@ import { Inject, Injectable, Logger } from "@nestjs/common";
 import axios, { AxiosError } from "axios";
 import { wrapper } from 'axios-cookiejar-support';
 import { CookieJar } from "tough-cookie";
-import { CookiePersistenceService } from "../../interfaces";
+import { CookiePersistenceService, StatefulRequestOptions } from "../../interfaces";
 
 export const COOKIE_PERSISTENCE_SERVICE = 'COOKIE_PERSISTENCE_SERVICE';
-
-// Опции для нашего stateful-запроса
-export interface StatefulRequestOptions<TInput> {
-  baseUrl: string;
-  path: string;
-  data: TInput;
-  persistenceKey: string; // e.g., username
-  method?: 'POST' | 'GET' | 'PUT' | 'DELETE';
-  maxRetries?: number;
-  retryDelay?: number; // in ms
-}
 
 @Injectable()
 export class HttpCommunicationProvider {
@@ -32,15 +21,13 @@ export class HttpCommunicationProvider {
    * Отправляет запрос к другому микросервису, управляя сессией (cookie) и ретраями.
    * Аналог вашего `executeHttpTask`.
    */
-  public async sendWithState<TInput, TResult>(
-    options: StatefulRequestOptions<TInput>,
+  public async sendWithState<TResult>(
+    options: StatefulRequestOptions,
   ): Promise<TResult> {
     const {
       baseUrl,
       path,
-      data,
-      persistenceKey,
-      method = 'POST',
+      username,
       maxRetries = this.DEFAULT_MAX_RETRIES,
       retryDelay = this.DEFAULT_RETRY_DELAY,
     } = options;
@@ -55,22 +42,23 @@ export class HttpCommunicationProvider {
 
       try {
         this.logger.log(
-          `[Key: ${persistenceKey}] [Task: ${path}] Attempt ${attempt}/${maxRetries} started.`,
+          `[Key: ${username}] [Task: ${path}] Attempt ${attempt}/${maxRetries} started.`,
         );
 
-        await this.cookiePersistence.load(persistenceKey, jar);
+        await this.cookiePersistence.load(username, jar);
 
-        const response = await httpClient.request<TResult>({
-          method,
-          url: `${baseUrl}/${path}`,
-          data,
-        });
+        const response = await axios.post<TResult>(
+          `${baseUrl}/${path}`, 
+          {
+            jar: jar,
+            httpClient: httpClient
+          }
+        )
 
-        // 3. Сохраняем cookie
-        await this.cookiePersistence.save(persistenceKey, jar);
+        await this.cookiePersistence.save(username, jar);
 
         this.logger.log(
-          `[Key: ${persistenceKey}] [Task: ${path}] Attempt ${attempt} successful.`,
+          `[Key: ${username}] [Task: ${path}] Attempt ${attempt} successful.`,
         );
         return response.data;
       } catch (error: any) {
@@ -83,30 +71,30 @@ export class HttpCommunicationProvider {
           errorMessage = `AxiosError: ${error.message} (Status: ${statusCode ?? 'N/A'})`;
         }
         this.logger.error(
-          `[Key: ${persistenceKey}] [Task: ${path}] Attempt ${attempt} failed: ${errorMessage}`,
+          `[Key: ${username}] [Task: ${path}] Attempt ${attempt} failed: ${errorMessage}`,
           error.stack,
         );
 
         retries--;
         this.logger.warn(
-          `[Key: ${persistenceKey}] [Task: ${path}] Retries left: ${retries}`,
+          `[Key: ${username}] [Task: ${path}] Retries left: ${retries}`,
         );
         if (retries > 0) {
           await new Promise(resolve => setTimeout(resolve, retryDelay));
           this.logger.log(
-            `[Key: ${persistenceKey}] [Task: ${path}] Retrying...`,
+            `[Key: ${username}] [Task: ${path}] Retrying...`,
           );
         }
       }
     }
 
     this.logger.error(
-      `[Key: ${persistenceKey}] [Task: ${path}] Failed after ${maxRetries} attempts.`,
+      `[Key: ${username}] [Task: ${path}] Failed after ${maxRetries} attempts.`,
     );
     throw (
       lastError ??
       new Error(
-        `Task ${path} failed for key ${persistenceKey} after ${maxRetries} attempts.`,
+        `Task ${path} failed for key ${username} after ${maxRetries} attempts.`,
       )
     );
   }

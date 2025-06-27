@@ -5,7 +5,7 @@ import * as puppeteer from 'puppeteer';
 import { Cookie, CookieJar, CreateCookieOptions } from "tough-cookie";
 import { TASK_NAMES } from "../shared/enums";
 import { PuppeteerClient } from "./puppeteer.client";
-import { AuthUtils } from "./utils";
+import { FileCookiePersistenceService } from "../cookies-persistance/CookiesPersistance.service";
 
 const InitializingNewProcesses: Record<TASK_NAMES, boolean> = {
     [TASK_NAMES.typeSteamGuardCode]: false,
@@ -19,7 +19,7 @@ const InitializingNewProcesses: Record<TASK_NAMES, boolean> = {
 export class PuppeteerService {
     constructor(
         private readonly logger: Logger, 
-        private readonly authUtils: AuthUtils,
+        private readonly cookiesPersistance: FileCookiePersistenceService,
         private sessions: Map<string, puppeteer.BrowserContext> = new Map(),
         private readonly browserClient: PuppeteerClient,
     ) {}
@@ -67,13 +67,13 @@ export class PuppeteerService {
                 }
                 if (loadCookiesFn) {
                     this.logger.log(`[User: ${username}] Loading cookies...`);
-                    await page.setCookie(... (await this.authUtils.loadCookiesFromFile(username)))
+                    await page.setCookie(... (await this.cookiesPersistance.loadCookiesFromFile(username)))
                 }
                 const result = await taskFn(page);
 
                 if (saveCookiesFn && result) {
                     this.logger.log(`[User: ${username}] Saving cookies...`);
-                    await this.authUtils.saveCookiesToFile(username, await page.cookies());
+                    await this.cookiesPersistance.saveCookiesToFile(username, await page.cookies());
                 }
                 this.logger.log(`[User: ${username}] [Task: ${taskName}] successful.`);
                 return result;
@@ -97,7 +97,7 @@ export class PuppeteerService {
 
     async loadCookiesIntoJar(jar: CookieJar, username: string): Promise<void> {
             try {
-                const puppeteerCookies: puppeteer.Cookie[] = await this.authUtils.loadCookiesFromFile(username);
+                const puppeteerCookies: puppeteer.Cookie[] = await this.cookiesPersistance.loadCookiesFromFile(username);
     
                 if (puppeteerCookies && puppeteerCookies.length > 0) {
                     let loadedCount = 0;
@@ -155,7 +155,7 @@ export class PuppeteerService {
                     }
                 }
                 if (puppeteerCookiesOutput.length > 0) {
-                    await this.authUtils.saveCookiesToFile(username, puppeteerCookiesOutput);
+                    await this.cookiesPersistance.saveCookiesToFile(username, puppeteerCookiesOutput);
                 } else {
                     this.logger.log(`[User: ${username}] No relevant cookies found in jar to save.`);
                 }

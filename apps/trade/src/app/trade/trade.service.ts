@@ -1,11 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { WarehouseService } from "../warehouse/warehouse.service";
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
-import * as cheerio from 'cheerio';
 import { CookieJar } from 'tough-cookie';
-import { InventoryItem, InventoryItemForTrade } from "./dto";
 import { ScarpingService } from "../scarping/scarping.service";
 import { CustomPromiseTimeout } from "../shared";
+import { WarehouseService } from "../warehouse/warehouse.service";
+import { InventoryItem, InventoryItemForTrade } from "./dto";
 
 @Injectable()
 export class TradeService {
