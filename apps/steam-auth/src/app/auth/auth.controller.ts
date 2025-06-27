@@ -1,17 +1,17 @@
-import { AxiosInstance } from 'axios';
-import { NextFunction, Request, Response } from 'express';
-import { CookieJar } from 'tough-cookie';
-import SteamAuthService from './steam-auth.service';
-import { z, ZodType, ZodTypeDef } from 'zod';
-import { Body, Controller, Inject, Injectable, Logger, Post, Res } from '@nestjs/common';
-import { AbstractLogin } from './abstract/abstract.login';
-import { LoginRequest } from '../shared/dto/login/LoginRequestDTO';
-import { AuthZodValidationPipe, ZodValidationPipe } from '@backend/nestjs';
-import { LoginSteamGuardRequest } from '../shared/dto/login-steamguard/LoginSteamGuardRequest';
-import { LoginResult } from '../shared/dto/login-result/LoginResult';
-import { LoginAcceptionRequest } from '../shared/dto/login-acception/LoginAcceptionRequest';
 import { COMMUNICATION_PROVIDER_TOKEN, CommunicationProvider } from '@backend/communication';
+import { AuthZodValidationPipe, CatchFilter, ZodValidationPipe } from '@backend/nestjs';
+import { Body, Controller, Inject, Injectable, Logger, Post, Res, UseFilters } from '@nestjs/common';
+import { AxiosInstance } from 'axios';
+import { NextFunction, Response } from 'express';
+import { CookieJar } from 'tough-cookie';
+import { z, ZodType, ZodTypeDef } from 'zod';
 import { AuthUtils } from '../puppeteer/utils';
+import { LoginAcceptionRequest } from '../shared/dto/login-acception/LoginAcceptionRequest';
+import { LoginResult } from '../shared/dto/login-result/LoginResult';
+import { LoginSteamGuardRequest } from '../shared/dto/login-steamguard/LoginSteamGuardRequest';
+import { LoginRequest } from '../shared/dto/login/LoginRequestDTO';
+import { AbstractLogin } from './abstract/abstract.login';
+import { SteamAuthService } from './auth.service';
 
 enum TASK_NAMES {
     login = "login",
@@ -58,6 +58,7 @@ export class SteamAuthController {
 
     
     @Post('login')
+    @UseFilters(CatchFilter)
     async login(
         @Body(new AuthZodValidationPipe(loginSchema)) parsedData: LoginRequest,
         @Res() res: Response,
@@ -82,6 +83,7 @@ export class SteamAuthController {
     }
 
     @Post('login-acception')
+    @UseFilters(CatchFilter)
     public async loginWithAcception(
         @Body(new ZodValidationPipe(loginWithSteamGuardCodeSchema)) parsedData: LoginSteamGuardRequest,
         @Res() res: Response,
@@ -115,6 +117,7 @@ export class SteamAuthController {
 
     
     @Post('login-with-code')
+    @UseFilters(CatchFilter)
     public async loginWithSteamGuardCode(
         @Body(new AuthZodValidationPipe(loginSchema)) parsedData: LoginSteamGuardRequest,
         @Res() res: Response,
@@ -151,14 +154,12 @@ export class SteamAuthController {
     }
 
     @Post('login-cookies')
+    @UseFilters(CatchFilter)
     public async loginUserWithCookies(
-        req: Request<object, object, { username: string, inviteCode: string }>,
+        @Body(new AuthZodValidationPipe(loginSchema)) parsedData: LoginSteamGuardRequest,
         res: Response,
         next: NextFunction
     ): Promise<void> {
-        const { username, inviteCode } = req.body;
-        if(!inviteCode || inviteCode.length === 0)
-            res.status(400).send({ success: false, message: "No invite codes provided." });
         try {
             this.executeHttpTask(
                 username, 

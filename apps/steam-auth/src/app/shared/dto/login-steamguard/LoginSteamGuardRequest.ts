@@ -1,6 +1,6 @@
-import { BaseLoginRequest } from '@backend/nestjs';
+import { BaseLoginRequest, Password } from '@backend/nestjs';
 
-export interface LoginSteamGuardRequest extends BaseLoginRequest {
+export interface LoginSteamGuardRequest extends BaseLoginRequest, Password {
     steamGuardCode: string;
     closePage: boolean
 }

@@ -1,7 +1,7 @@
 import * as puppeteer from 'puppeteer';
 import { PuppeteerService } from '../../puppeteer/puppeteer.service';
-import { BaseLoginRequest } from '../../../../../../libs/nestjs/src/lib/shared/dto/auth/BaseLoginRequest';
 import { TASK_NAMES } from '../../shared/enums';
+import { BaseLoginRequest } from '@backend/nestjs';
 
 interface LoginOptions {
     closePage?: boolean

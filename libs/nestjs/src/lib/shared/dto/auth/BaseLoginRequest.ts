@@ -1,5 +1,8 @@
 export interface BaseLoginRequest {
     username: string; 
-    password: string;
     inviteCode: string;
+}
+
+export interface Password {
+    password: string
 }

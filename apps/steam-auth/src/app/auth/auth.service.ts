@@ -1,11 +1,10 @@
 import * as puppeteer from 'puppeteer';
 import { Repository } from 'typeorm';
-import { CustomPromiseTimeout } from '../libs/utils';
 import { User } from './entities/User';
 
-import { RequestTimeout } from '../libs/errors/4xx/Request_Timeout_408';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { RequestTimeout } from '@backend/nestjs';
 
 const URLS = {
   steamLogin: 'https://steamcommunity.com/login/home/?goto=',
@@ -27,6 +26,14 @@ const TIMEOUTS = {
   mouseAction: 100,        // Паузы для действий мышью
   dragDropPause: 200,      // Пауза после перетаскивания
   tradeMonitorInterval: 7000,// 7 секунд интервал проверки трейдов
+};
+
+export const CustomPromiseTimeout = async (timeout: number): Promise<void> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve();
+    }, timeout);
+  });
 };
 
 @Injectable()
