@@ -118,10 +118,10 @@ export class TradeService {
         }
         this.logger.debug(`Found inventory with ${inventory?.length} length`)
         const formattedAssets = inventory.map(item => ({
-        appid: item.appid,
-        contextid: item.contextid,
-        amount: item.amount,
-        assetid: item.assetid.toString()
+            appid: item.appid,
+            contextid: item.contextid,
+            amount: item.amount,
+            assetid: item.assetid.toString()
         }));
         const tradeOfferData = {
         newversion: true,
@@ -155,10 +155,10 @@ export class TradeService {
         const response = await this.executeApiActionWithRetry(
             httpClient,
             {
-            url: tradePartnerUrl,
-            method: 'POST',
-            data: payload.toString(),
-            headers
+                url: tradePartnerUrl,
+                method: 'POST',
+                data: payload.toString(),
+                headers
             },
             "sendTrade"
         );
@@ -293,7 +293,7 @@ export class TradeService {
             this.logger.warn(`[${username}] Could not fetch sent offers page at the start.`);
             throw new Error(`[${username}] Could not fetch sent offers page at the start.`)
         }
-        let html = await this.scarpingService.loadHtml(startResult.data)
+        let html = this.scarpingService.loadHtml(startResult.data)
         let startCount = (await this.scarpingService.getHtmlElement(html, '.tradeoffer')).length;
         while (tries > 0) {
         const result = await this.scarpingService.getHtmlWithRetry(sentOffersUrl, `GetSentOffers_${username}`, httpClient);
@@ -304,7 +304,7 @@ export class TradeService {
                 continue;
             }
             try {
-            html = await this.scarpingService.loadHtml(result.data)
+            html = this.scarpingService.loadHtml(result.data)
             const tradeOfferElements = this.scarpingService.getHtmlElement(html, '.tradeoffer');
             const currentCount = tradeOfferElements.length;
             if(currentCount > startCount) {
@@ -326,7 +326,6 @@ export class TradeService {
             }
 
             tries--;
-            console.log(`[${username}] Waiting for changes... (${tries} checks left)`);
             await CustomPromiseTimeout(WAIT_TIME);
         }
         this.logger.log(`[${username}] Monitoring finished after ${tries} checks.`);
