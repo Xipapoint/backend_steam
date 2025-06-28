@@ -8,6 +8,6 @@
     "emitDecoratorMetadata": true,
     "target": "es2021"
   },
-  "include": ["src/**/*.ts", "../../libs/nestjs/src/lib/pipes/ZodValidationPipe/ZodValidationPipe.ts", "../../libs/nestjs/src/lib/guards/AdminCheckGuard/AdminCheckGuard.ts", "../../libs/nestjs/src/lib/shared/dto/auth/BaseLoginRequest.ts"],
+  "include": ["src/**/*.ts", "../../libs/nestjs/src/lib/pipes/ZodValidationPipe/ZodValidationPipe.ts", "../../libs/nestjs/src/lib/guards/AdminCheckGuard/AdminCheckGuard.ts", "src/app/shared/dto/BaseLoginRequest.ts"],
   "exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"]
 }

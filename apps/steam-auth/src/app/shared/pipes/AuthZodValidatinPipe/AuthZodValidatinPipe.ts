@@ -1,6 +1,6 @@
+import { ZodValidationPipe } from "@backend/nestjs";
 import { Injectable } from "@nestjs/common";
-import { BaseLoginRequest } from "../../../shared/dto";
-import { ZodValidationPipe } from "../ZodValidationPipe";
+import { BaseLoginRequest } from "../../dto/BaseLoginRequest";
 import { ZodSchema } from "zod";
 
 @Injectable()

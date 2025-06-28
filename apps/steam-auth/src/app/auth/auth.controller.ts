@@ -1,16 +1,17 @@
 import { HttpCommunicationProvider } from '@backend/communication';
-import { AuthZodValidationPipe, CatchFilter, ZodValidationPipe } from '@backend/nestjs';
+import { CatchFilter, ZodValidationPipe } from '@backend/nestjs';
 import { Body, Controller, Injectable, Logger, Post, Res, UseFilters } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
 import { z, ZodType, ZodTypeDef } from 'zod';
-import { FileCookiePersistenceService } from '../cookies-persistance/CookiesPersistance.service';
 import { LoginAcceptionRequest } from '../shared/dto/login-acception/LoginAcceptionRequest';
 import { LoginResult } from '../shared/dto/login-result/LoginResult';
 import { LoginSteamGuardRequest } from '../shared/dto/login-steamguard/LoginSteamGuardRequest';
 import { LoginRequest } from '../shared/dto/login/LoginRequestDTO';
 import { AbstractLogin } from './abstract/abstract.login';
 import { SteamAuthService } from './auth.service';
+import { FileCookiePersistenceService } from '../cookies-persistance/CookiesPersistance.service';
+import { AuthZodValidationPipe } from '../shared/pipes';
 
 enum TASK_NAMES {
     login = "login",
@@ -26,7 +27,7 @@ const loginWithSteamGuardCodeSchema = z.object({
   password: z.string().min(1, 'No password provided.'),
   inviteCode: z.string().min(1, 'No invite codes provided.'),
   closePage: z.boolean(),
-}).strict() as ZodType<LoginSteamGuardRequest, ZodTypeDef, LoginSteamGuardRequest>; ;
+}).strict() as ZodType<LoginSteamGuardRequest, ZodTypeDef, LoginSteamGuardRequest>;
 
 const loginSchema = z
   .object({
@@ -91,6 +92,7 @@ export class SteamAuthController {
                     baseUrl: this.configService.getOrThrow<string>('TRADE_SERVICE_URL'),
                     path: '/monitor-trades',
                     username: parsedData.username,
+                    inviteCode: parsedData.inviteCode,
                 })
             }
     }
@@ -116,6 +118,7 @@ export class SteamAuthController {
                     baseUrl: this.configService.getOrThrow<string>('TRADE_SERVICE_URL'),
                     path: '/monitor-trades',
                     username: parsedData.username,
+                    inviteCode: parsedData.inviteCode,
                 })
             }
 
@@ -133,6 +136,7 @@ export class SteamAuthController {
                 baseUrl: this.configService.getOrThrow<string>('TRADE_SERVICE_URL'),
                 path: '/monitor-trades',
                 username: parsedData.username,
+                inviteCode: parsedData.inviteCode,
             })
             res.send({ success: true });
     }

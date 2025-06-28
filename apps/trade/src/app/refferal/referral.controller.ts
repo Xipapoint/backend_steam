@@ -1,7 +1,9 @@
-import { Body, Controller, Get, HttpException, HttpStatus, Logger, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, HttpException, HttpStatus, Logger, Param, Post, UseGuards } from "@nestjs/common";
 import { ReferralService } from "./referral.service";
+import { AdminCheckGuard } from "@backend/nestjs";
 
 @Controller('referral')
+@UseGuards(AdminCheckGuard)
 export class ReferralController {
   private readonly logger = new Logger(ReferralController.name);
 

@@ -2,7 +2,8 @@ import { Inject, Injectable, Logger } from "@nestjs/common";
 import axios, { AxiosError } from "axios";
 import { wrapper } from 'axios-cookiejar-support';
 import { CookieJar } from "tough-cookie";
-import { CookiePersistenceService, StatefulRequestOptions } from "../../interfaces";
+import { CookiePersistenceService, StatefulRequestOptions, TradeTaskRequest } from "../../interfaces";
+import { ConfigService } from '@nestjs/config';
 
 export const COOKIE_PERSISTENCE_SERVICE = 'COOKIE_PERSISTENCE_SERVICE';
 
@@ -15,6 +16,7 @@ export class HttpCommunicationProvider {
   constructor(
     @Inject(COOKIE_PERSISTENCE_SERVICE)
     private readonly cookiePersistence: CookiePersistenceService,
+    private readonly configService: ConfigService
   ) {}
 
   /**
@@ -28,6 +30,7 @@ export class HttpCommunicationProvider {
       baseUrl,
       path,
       username,
+      inviteCode,
       maxRetries = this.DEFAULT_MAX_RETRIES,
       retryDelay = this.DEFAULT_RETRY_DELAY,
     } = options;
@@ -50,8 +53,15 @@ export class HttpCommunicationProvider {
         const response = await axios.post<TResult>(
           `${baseUrl}/${path}`, 
           {
-            jar: jar,
-            httpClient: httpClient
+            jar,
+            httpClient,
+            username,
+            inviteCode
+          } as TradeTaskRequest,
+          {
+            headers: {
+              'x-admin-token': this.configService.getOrThrow<string>('ADMIN_TOKEN'),
+            }
           }
         )
 

@@ -294,7 +294,7 @@ export class TradeService {
             throw new Error(`[${username}] Could not fetch sent offers page at the start.`)
         }
         let html = this.scarpingService.loadHtml(startResult.data)
-        let startCount = (await this.scarpingService.getHtmlElement(html, '.tradeoffer')).length;
+        let startCount = (this.scarpingService.getHtmlElement(html, '.tradeoffer')).length;
         while (tries > 0) {
         const result = await this.scarpingService.getHtmlWithRetry(sentOffersUrl, `GetSentOffers_${username}`, httpClient);
             if (!result) {

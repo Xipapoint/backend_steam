@@ -1,8 +1,10 @@
-import { Controller, Logger, Post, Body, HttpException, HttpStatus, Delete, Param, Patch } from "@nestjs/common";
+import { Controller, Logger, Post, Body, HttpException, HttpStatus, Delete, Param, Patch, UseGuards } from "@nestjs/common";
 import { WarehouseService } from "./warehouse.service";
 import { CreateWarehouseAccount, SetActiveStatus } from "./dto";
+import { AdminCheckGuard } from "@backend/nestjs";
 
 @Controller('warehouse')
+@UseGuards(AdminCheckGuard)
 export class WarehouseController {
   private readonly logger = new Logger(WarehouseController.name);
 

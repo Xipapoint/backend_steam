@@ -11,6 +11,6 @@ import { HttpCommunicationProvider } from './providers/HttpProvider/HttpProvider
       useClass: HttpCommunicationProvider,
     },
   ],
-  exports: [],
+  exports: [COMMUNICATION_PROVIDER_TOKEN],
 })
 export class CommunicationModule {}
