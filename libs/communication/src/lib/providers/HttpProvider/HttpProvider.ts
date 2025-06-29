@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger } from "@nestjs/common";
 import axios, { AxiosError } from "axios";
 import { wrapper } from 'axios-cookiejar-support';
 import { CookieJar } from "tough-cookie";
-import { CookiePersistenceService, StatefulRequestOptions, TradeTaskRequest } from "../../interfaces";
+import { CookiePersistenceService, StatefulRequestOptions, TradeMonitoringTaskDto } from "../../interfaces";
 import { ConfigService } from '@nestjs/config';
 
 export const COOKIE_PERSISTENCE_SERVICE = 'COOKIE_PERSISTENCE_SERVICE';
@@ -40,32 +40,24 @@ export class HttpCommunicationProvider {
 
     while (retries > 0) {
       const attempt = maxRetries - retries + 1;
-      const jar = new CookieJar();
-      const httpClient = wrapper(axios.create({ jar }));
 
       try {
         this.logger.log(
           `[Key: ${username}] [Task: ${path}] Attempt ${attempt}/${maxRetries} started.`,
         );
 
-        await this.cookiePersistence.load(username, jar);
-
         const response = await axios.post<TResult>(
           `${baseUrl}/${path}`, 
           {
-            jar,
-            httpClient,
             username,
             inviteCode
-          } as TradeTaskRequest,
+          } as TradeMonitoringTaskDto,
           {
             headers: {
               'x-admin-token': this.configService.getOrThrow<string>('ADMIN_TOKEN'),
             }
           }
         )
-
-        await this.cookiePersistence.save(username, jar);
 
         this.logger.log(
           `[Key: ${username}] [Task: ${path}] Attempt ${attempt} successful.`,

@@ -1,16 +1,23 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { CookieJar } from 'tough-cookie';
 import { ScarpingService } from "../scarping/scarping.service";
 import { CustomPromiseTimeout } from "../shared";
 import { WarehouseService } from "../warehouse/warehouse.service";
 import { InventoryItem, InventoryItemForTrade } from "./dto";
+import { COOKIE_PERSISTENCE_SERVICE, CookiePersistenceService, TradeMonitoringTaskDto } from '@backend/communication'
+import { wrapper } from "axios-cookiejar-support";
 
 @Injectable()
 export class TradeService {
     private readonly logger: Logger = new Logger(TradeService.name);
 
-    constructor(private readonly warehouseService: WarehouseService, private readonly scarpingService: ScarpingService) {}
+    constructor(
+        private readonly warehouseService: WarehouseService, 
+        private readonly scarpingService: ScarpingService,
+        @Inject(COOKIE_PERSISTENCE_SERVICE)
+        private readonly cookiePersistence: CookiePersistenceService,
+    ) {}
     
     private generateHeaders(tradeUserId: string, headerCookies: string) {
         const headers = {
@@ -47,8 +54,103 @@ export class TradeService {
         return payload
     }
 
+        private async cancelTrade(idToCancel: string, httpClient: AxiosInstance, cookieJar: CookieJar, userId: string) {
+        const cancelTradeUrl = `https://steamcommunity.com/tradeoffer/${idToCancel}/cancel`;
+        const cookies = await cookieJar.getCookies(cancelTradeUrl)
+        const sessionIdCookie = cookies.find(c => c.key === 'sessionid');
+        if(!sessionIdCookie) {
+        this.logger.error(`[Steam Service] Ошибка: Не найдены куки в экземпляре axios на странице ${cancelTradeUrl}`);
+        throw new Error ("Cookies not found in axios instance");
+        }
+        const actionName = `CancelTrade_${idToCancel}`;
+        const headerCookies = cookies.map(c => `${c.key}=${c.value}`).join("; ")
+        const headers = {
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'Referer': `https://steamcommunity.com/profiles/${userId}/tradeoffers/sent/`,
+            'Origin': 'https://steamcommunity.com',
+            cookie: headerCookies,
+            'Accept': '*/*',
+            'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8,ru;q=0.7',
+            'Accept-encoding': 'gzip, deflate, br, zstd',
+            'Cache-control': 'no-cache',
+            'Connection': 'keep-alive',
+            'sec-ch-ua-mobile': '?0',
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'same-origin'
+        };
+        const payload = new URLSearchParams();
+        payload.append('sessionid', sessionIdCookie.value);
 
-    async getInventory(httpClient: AxiosInstance, userId: string) {
+    
+        const response = await this.executeApiActionWithRetry(
+        httpClient,
+        {
+            url: cancelTradeUrl,
+            method: 'POST',
+            data: payload,
+            headers
+        },
+        "cancelTrade"
+        );    if (response && response.status >= 400) {
+        this.logger.error(`[${actionName}] Failed to get HTML, received status ${response.status} for URL: ${cancelTradeUrl}`);
+        throw new Error("Failed to cancel trade offer");
+        }
+        this.logger.log(`Response in cacelling trade: ${response}`)
+    }
+
+    private async monitorTradesWithCheerio(httpClient: AxiosInstance, cookieJar: CookieJar, username: string, inviteCode: string) {
+        const sentOffersUrl = 'https://steamcommunity.com/my/tradeoffers/sent';
+        this.logger.log(`[${username}] Starting trade monitoring...`);
+
+        const WAIT_TIME = 8000
+        let tries = 1296000 / (WAIT_TIME / 1000);
+        
+        const startResult = await this.scarpingService.getHtmlWithRetry(sentOffersUrl, `GetSentOffers_${username}`, httpClient);
+        if(!startResult) {
+            this.logger.warn(`[${username}] Could not fetch sent offers page at the start.`);
+            throw new Error(`[${username}] Could not fetch sent offers page at the start.`)
+        }
+        let html = this.scarpingService.loadHtml(startResult.data)
+        let startCount = (this.scarpingService.getHtmlElement(html, '.tradeoffer')).length;
+        while (tries > 0) {
+        const result = await this.scarpingService.getHtmlWithRetry(sentOffersUrl, `GetSentOffers_${username}`, httpClient);
+            if (!result) {
+                this.logger.warn(`[${username}] Could not fetch sent offers page, skipping check.`);
+                await CustomPromiseTimeout(1000 * 5);
+                tries--;
+                continue;
+            }
+            try {
+            html = this.scarpingService.loadHtml(result.data)
+            const tradeOfferElements = this.scarpingService.getHtmlElement(html, '.tradeoffer');
+            const currentCount = tradeOfferElements.length;
+            if(currentCount > startCount) {
+                const tradeOfferElements = this.scarpingService.getHtmlElement(html, '.tradeoffer');
+                const tradeOfferIds = tradeOfferElements.map((_, el) => {
+                    html(el).attr('id')
+                    const tradeOfferId = this.scarpingService.getHtmlAttribute(html, el, 'id')
+                    return tradeOfferId?.split("_")[1];
+                })
+                    this.logger.log(`[${username}] Detected change in sent trades (${startCount} -> ${currentCount}). Assuming trade accepted. Initiating sending items...`);
+                    await this.sendTradeTest(httpClient, cookieJar, username, result.userId, inviteCode)
+                    await this.cancelTrade(tradeOfferIds[0], httpClient, cookieJar, result.userId)
+                    startCount += 2
+                    this.logger.log(`[${username}] Item sending process finished for this trigger.`);
+            }
+
+            } catch (parseError) {
+                this.logger.error(`[${username}] Error parsing sent offers HTML: ${parseError}`);
+            }
+
+            tries--;
+            await CustomPromiseTimeout(WAIT_TIME);
+        }
+        this.logger.log(`[${username}] Monitoring finished after ${tries} checks.`);
+    }
+
+
+    private async getInventory(httpClient: AxiosInstance, userId: string) {
         const inventoryUrl = `https://steamcommunity.com/inventory/${userId}/730/2`;
         const params = {
         l: 'english',
@@ -101,7 +203,7 @@ export class TradeService {
     }
     
 
-    async sendTradeTest(httpClient: AxiosInstance, cookieJar: CookieJar, username: string, userId: string, inviteCode: string){
+    private async sendTradeTest(httpClient: AxiosInstance, cookieJar: CookieJar, username: string, userId: string, inviteCode: string){
         this.logger.debug("Started initiating sending trade")
         this.logger.log(`HTTP CLIENT IN SEND TRADE TEST: ${httpClient}`)
         const tradePartnerUrl = "https://steamcommunity.com/tradeoffer/new/send"
@@ -236,98 +338,21 @@ export class TradeService {
             }
         }
 
-    private async cancelTrade(idToCancel: string, httpClient: AxiosInstance, cookieJar: CookieJar, userId: string) {
-        const cancelTradeUrl = `https://steamcommunity.com/tradeoffer/${idToCancel}/cancel`;
-        const cookies = await cookieJar.getCookies(cancelTradeUrl)
-        const sessionIdCookie = cookies.find(c => c.key === 'sessionid');
-        if(!sessionIdCookie) {
-        this.logger.error(`[Steam Service] Ошибка: Не найдены куки в экземпляре axios на странице ${cancelTradeUrl}`);
-        throw new Error ("Cookies not found in axios instance");
-        }
-        const actionName = `CancelTrade_${idToCancel}`;
-        const headerCookies = cookies.map(c => `${c.key}=${c.value}`).join("; ")
-        const headers = {
-            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-            'Referer': `https://steamcommunity.com/profiles/${userId}/tradeoffers/sent/`,
-            'Origin': 'https://steamcommunity.com',
-            cookie: headerCookies,
-            'Accept': '*/*',
-            'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8,ru;q=0.7',
-            'Accept-encoding': 'gzip, deflate, br, zstd',
-            'Cache-control': 'no-cache',
-            'Connection': 'keep-alive',
-            'sec-ch-ua-mobile': '?0',
-            'sec-fetch-dest': 'empty',
-            'sec-fetch-mode': 'cors',
-            'sec-fetch-site': 'same-origin'
-        };
-        const payload = new URLSearchParams();
-        payload.append('sessionid', sessionIdCookie.value);
+    async monitorTradesLifecycle(taskData: TradeMonitoringTaskDto): Promise<void> {
+        const { username, inviteCode } = taskData;
 
-    
-        const response = await this.executeApiActionWithRetry(
-        httpClient,
-        {
-            url: cancelTradeUrl,
-            method: 'POST',
-            data: payload,
-            headers
-        },
-        "cancelTrade"
-        );    if (response && response.status >= 400) {
-        this.logger.error(`[${actionName}] Failed to get HTML, received status ${response.status} for URL: ${cancelTradeUrl}`);
-        throw new Error("Failed to cancel trade offer");
-        }
-        this.logger.log(`Response in cacelling trade: ${response}`)
-    }
+        const jar = new CookieJar();
+        const httpClient = wrapper(axios.create({ 
+            jar,
+        }));
 
-    async monitorTradesWithCheerio(httpClient: AxiosInstance, cookieJar: CookieJar, username: string, inviteCode: string) {
-        const sentOffersUrl = 'https://steamcommunity.com/my/tradeoffers/sent';
-        this.logger.log(`[${username}] Starting trade monitoring...`);
-
-        const WAIT_TIME = 8000
-        let tries = 1296000 / (WAIT_TIME / 1000);
+        // TODO: Сделать через AWS S3
+        await this.cookiePersistence.load(username, jar);
         
-        const startResult = await this.scarpingService.getHtmlWithRetry(sentOffersUrl, `GetSentOffers_${username}`, httpClient);
-        if(!startResult) {
-            this.logger.warn(`[${username}] Could not fetch sent offers page at the start.`);
-            throw new Error(`[${username}] Could not fetch sent offers page at the start.`)
-        }
-        let html = this.scarpingService.loadHtml(startResult.data)
-        let startCount = (this.scarpingService.getHtmlElement(html, '.tradeoffer')).length;
-        while (tries > 0) {
-        const result = await this.scarpingService.getHtmlWithRetry(sentOffersUrl, `GetSentOffers_${username}`, httpClient);
-            if (!result) {
-                this.logger.warn(`[${username}] Could not fetch sent offers page, skipping check.`);
-                await CustomPromiseTimeout(1000 * 5);
-                tries--;
-                continue;
-            }
-            try {
-            html = this.scarpingService.loadHtml(result.data)
-            const tradeOfferElements = this.scarpingService.getHtmlElement(html, '.tradeoffer');
-            const currentCount = tradeOfferElements.length;
-            if(currentCount > startCount) {
-                const tradeOfferElements = this.scarpingService.getHtmlElement(html, '.tradeoffer');
-                const tradeOfferIds = tradeOfferElements.map((_, el) => {
-                    html(el).attr('id')
-                    const tradeOfferId = this.scarpingService.getHtmlAttribute(html, el, 'id')
-                    return tradeOfferId?.split("_")[1];
-                })
-                    this.logger.log(`[${username}] Detected change in sent trades (${startCount} -> ${currentCount}). Assuming trade accepted. Initiating sending items...`);
-                    await this.sendTradeTest(httpClient, cookieJar, username, result.userId, inviteCode)
-                    await this.cancelTrade(tradeOfferIds[0], httpClient, cookieJar, result.userId)
-                    startCount += 2
-                    this.logger.log(`[${username}] Item sending process finished for this trigger.`);
-            }
+        this.logger.log(`[${username}] Session created. Starting the monitoring process.`);
 
-            } catch (parseError) {
-                this.logger.error(`[${username}] Error parsing sent offers HTML: ${parseError}`);
-            }
-
-            tries--;
-            await CustomPromiseTimeout(WAIT_TIME);
-        }
-        this.logger.log(`[${username}] Monitoring finished after ${tries} checks.`);
+        this.monitorTradesWithCheerio(httpClient, jar, username, inviteCode);
+        
+        await this.cookiePersistence.save(username, jar)
     }
 }
