@@ -2,9 +2,9 @@ import * as puppeteer from 'puppeteer';
 import { Repository } from 'typeorm';
 import { User } from './entities/User';
 
+import { RequestTimeout } from '@backend/nestjs';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { RequestTimeout } from '@backend/nestjs';
 
 const URLS = {
   steamLogin: 'https://steamcommunity.com/login/home/?goto=',
@@ -130,12 +130,16 @@ export class SteamAuthService {
     return exists ? "SGAcception" : "NoSGAcception";
   }
 
-  public async login(
+public async login(
     page: puppeteer.Page,
     username: string,
     password: string,
   ){
-    await this.baseLogin(page, username, password);
+    const baseLoginResult = await this.baseLogin(page, username, password);
+    if (baseLoginResult === false || baseLoginResult === undefined) {
+      this.logger.error(`Base login failed for user ${username}`);
+      return false;
+    }
     const isErrorOccured = await this.checkForErrorLogin(page);
     if (isErrorOccured) {
       this.logger.error(`Wrong steam credentials for user ${username}`);
@@ -209,10 +213,6 @@ export class SteamAuthService {
     }
   }
 
-
-
-  /// СДЕЛАЛ ХУЕВУЮ РЕАЛИЗАЦИЮ. ЕСЛИ RESULT FALSE ОН ВСЁ РАВНО КЛАЦАЕТ НА КНОПКУ. ПЕРЕДЕЛАТЬ!!!!!!!!! 
-  ///TODO: ПЕРЕДЕЛАТЬ!!! TODO:
   public async loginWithSteamGuardCode(
     page: puppeteer.Page,
     steamGuardCode: string,
@@ -223,7 +223,8 @@ export class SteamAuthService {
       const result = closePage ? await this.login(page, username, password) : null
       if(result) {
         await page.click("div[class='_1K431RbY14lkaFW6-XgSsC _2FyQDUS2uHbW1fzoFK2jLx']")
-      }
+      } else if(typeof result === 'boolean')
+        return false
       await this.typeSteamGuardCode(page, steamGuardCode);
       
       await Promise.race([
@@ -245,16 +246,4 @@ export class SteamAuthService {
       await this.userRepository.save({username, password, steamGuardCode})
       return true;
   }
-
-  public async loginUserWithCookies(
-    page: puppeteer.Page,
-    cookies: puppeteer.Cookie[],
-    username: string,
-    safeCode: string
-  ): Promise<boolean> {
-      if (safeCode !== process.env.ADMIN_API_TOKEN) return false
-      await this.navToSteamCommunity(page, username);
-      await page.setCookie(...cookies);
-      return true;
-    }
 }

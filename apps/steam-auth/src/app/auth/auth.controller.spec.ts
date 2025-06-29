@@ -6,194 +6,264 @@ import { FileCookiePersistenceService } from '../cookies-persistance/cookies-per
 import { HttpCommunicationProvider } from '@backend/communication';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
+import { CatchFilter, RequestTimeout } from '@backend/nestjs';
 
 describe('SteamAuthController', () => {
-  let controller: SteamAuthController;
-  let steamAuthService: jest.Mocked<SteamAuthService>;
-  let abstractLogin: jest.Mocked<AbstractLogin>;
-  let cookiesPersistance: jest.Mocked<FileCookiePersistenceService>;
-  let httpCommunicationProvider: jest.Mocked<HttpCommunicationProvider>;
-  let configService: jest.Mocked<ConfigService>;
+    let controller: SteamAuthController;
+    let steamAuthService: jest.Mocked<SteamAuthService>;
+    let abstractLogin: jest.Mocked<AbstractLogin>;
+    let cookiesPersistance: jest.Mocked<FileCookiePersistenceService>;
+    let httpCommunicationProvider: jest.Mocked<HttpCommunicationProvider>;
+    let configService: jest.Mocked<ConfigService>;
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [SteamAuthController],
-      providers: [
-        { provide: SteamAuthService, useValue: { login: jest.fn() } },
-        { provide: AbstractLogin, useValue: { execute: jest.fn() } },
-        { provide: FileCookiePersistenceService, useValue: { loadCookiesFromFile: jest.fn(), saveCookiesToFile: jest.fn() } },
-        { provide: HttpCommunicationProvider, useValue: { sendWithState: jest.fn() } },
-        { provide: ConfigService, useValue: { getOrThrow: jest.fn() } },
-      ],
-    }).compile();
+    beforeEach(async () => {
+        const module: TestingModule = await Test.createTestingModule({
+            controllers: [SteamAuthController],
+            providers: [
+                { provide: SteamAuthService, useValue: { login: jest.fn() } },
+                { provide: AbstractLogin, useValue: { execute: jest.fn() } },
+                { provide: FileCookiePersistenceService, useValue: { loadCookiesFromFile: jest.fn(), saveCookiesToFile: jest.fn() } },
+                { provide: HttpCommunicationProvider, useValue: { sendWithState: jest.fn() } },
+                { provide: ConfigService, useValue: { getOrThrow: jest.fn() } },
+            ],
+        }).compile();
 
-    controller = module.get<SteamAuthController>(SteamAuthController);
-    steamAuthService = module.get(SteamAuthService);
-    abstractLogin = module.get(AbstractLogin);
-    cookiesPersistance = module.get(FileCookiePersistenceService);
-    httpCommunicationProvider = module.get(HttpCommunicationProvider);
-    configService = module.get(ConfigService);
-  });
-
-  describe('login', () => {
-    it('should call abstractLogin.execute and send response with result object', async () => {
-        // arrange
-        const parsedData = {
-            username: 'testUser',
-            password: 'testPassword',
-            inviteCode: 'invite',
-        };
-
-        const mockRes = {
-            send: jest.fn(),
-        } as unknown as Response;
-
-        const expectedResult = { success: false };
-
-        // Мокаем выполнение abstractLogin
-        abstractLogin.execute.mockResolvedValue(expectedResult);
-
-        // act
-        await controller.login(parsedData, mockRes);
-
-        // assert
-        expect(abstractLogin.execute).toHaveBeenCalledWith(
-            expect.objectContaining({
-                parsedBody: parsedData,
-                taskName: 'login',
-                options: { closePage: true },
-            })
-        );
-
-        expect(mockRes.send).toHaveBeenCalledWith(expectedResult);
+        controller = module.get<SteamAuthController>(SteamAuthController);
+        steamAuthService = module.get(SteamAuthService);
+        abstractLogin = module.get(AbstractLogin);
+        cookiesPersistance = module.get(FileCookiePersistenceService);
+        httpCommunicationProvider = module.get(HttpCommunicationProvider);
+        configService = module.get(ConfigService);
+        configService.getOrThrow.mockReturnValue('http://trade-service.test');
     });
 
-       it('should call abstractLogin.execute and send response with false', async () => {
-        // arrange
-        const parsedData = {
-            username: '',
-            password: 'testPassword',
-            inviteCode: 'invite',
-        };
+    describe('login', () => {
+        it('should call abstractLogin.execute and send response with result object', async () => {
+            const parsedData = {
+                username: 'testUser',
+                password: 'testPassword',
+                inviteCode: 'invite',
+            };
+            const mockRes = { send: jest.fn() } as unknown as Response;
+            const expectedResult = { success: true };
 
-        const mockRes = {
-            send: jest.fn(),
-        } as unknown as Response;
+            abstractLogin.execute.mockResolvedValue(expectedResult);
 
-        const expectedResult = { success: false };
+            await controller.login(parsedData, mockRes);
 
-        // Мокаем выполнение abstractLogin
-        abstractLogin.execute.mockResolvedValue(false);
+            expect(abstractLogin.execute).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    parsedBody: parsedData,
+                    taskName: 'login',
+                    options: { closePage: true },
+                })
+            );
+            expect(mockRes.send).toHaveBeenCalledWith(expectedResult);
+        });
 
-        // act
-        await controller.login(parsedData, mockRes);
+        it('should call abstractLogin.execute and send response with { success: false } when result is boolean false', async () => {
+            const parsedData = {
+                username: 'testUser',
+                password: 'testPassword',
+                inviteCode: 'invite',
+            };
+            const mockRes = { send: jest.fn() } as unknown as Response;
+            abstractLogin.execute.mockResolvedValue(false);
 
-        // assert
-        expect(abstractLogin.execute).toHaveBeenCalledWith(
-            expect.objectContaining({
-                parsedBody: parsedData,
-                taskName: 'login',
-                options: { closePage: true },
-            })
-        );
+            await controller.login(parsedData, mockRes);
 
-        expect(mockRes.send).toHaveBeenCalledWith(expectedResult);
+            expect(abstractLogin.execute).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    parsedBody: parsedData,
+                    taskName: 'login',
+                    options: { closePage: true },
+                })
+            );
+            expect(mockRes.send).toHaveBeenCalledWith({ success: false });
+        });
     });
 
-       it('should call abstractLogin.execute and send response with false', async () => {
-        // arrange
-        const parsedData = {
-            username: 'fff',
-            password: '',
-            inviteCode: 'ff',
-        };
+    describe('loginWithAcception', () => {
+        it('should call abstractLogin.execute and send response with { success: false } and not send state when result is false', async () => {
+            const parsedData = {
+                username: 'testUser',
+                password: 'testPassword',
+                inviteCode: 'invite',
+                steamGuardCode: '123456',
+                closePage: false,
+            };
+            const mockRes = { send: jest.fn() } as unknown as Response;
+            abstractLogin.execute.mockResolvedValue(false);
 
-        const mockRes = {
-            send: jest.fn(),
-        } as unknown as Response;
+            await controller.loginWithAcception(parsedData, mockRes);
 
-        const expectedResult = { success: false };
+            expect(abstractLogin.execute).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    parsedBody: parsedData,
+                    taskName: 'loginWithAcception',
+                })
+            );
+            expect(mockRes.send).toHaveBeenCalledWith({ success: false });
+            expect(httpCommunicationProvider.sendWithState).not.toHaveBeenCalled();
+        });
 
-        // Мокаем выполнение abstractLogin
-        abstractLogin.execute.mockResolvedValue(false);
+        it('should call abstractLogin.execute, send response and call sendWithState when result is truthy', async () => {
+            const parsedData = {
+                username: 'testUser',
+                password: 'testPassword',
+                inviteCode: 'invite',
+                steamGuardCode: '123456',
+                closePage: false,
+            };
+            const mockRes = { send: jest.fn() } as unknown as Response;
+            const expectedResult = { success: true, someOtherProp: 'value' };
+            abstractLogin.execute.mockResolvedValue(expectedResult);
 
-        // act
-        await controller.login(parsedData, mockRes);
+            await controller.loginWithAcception(parsedData, mockRes);
 
-        // assert
-        expect(abstractLogin.execute).toHaveBeenCalledWith(
-            expect.objectContaining({
-                parsedBody: parsedData,
-                taskName: 'login',
-                options: { closePage: true },
-            })
-        );
-
-        expect(mockRes.send).toHaveBeenCalledWith(expectedResult);
+            expect(abstractLogin.execute).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    parsedBody: parsedData,
+                    taskName: 'loginWithAcception',
+                })
+            );
+            expect(mockRes.send).toHaveBeenCalledWith({ success: expectedResult });
+            expect(httpCommunicationProvider.sendWithState).toHaveBeenCalledWith({
+                baseUrl: 'http://trade-service.test',
+                path: '/monitor-trades',
+                username: parsedData.username,
+                inviteCode: parsedData.inviteCode,
+            });
+        });
     });
 
-    it('should call abstractLogin.execute and send response with false', async () => {
-        // arrange
-        const parsedData = {
-            username: 'fff',
-            password: 'testPassword',
-            inviteCode: '',
-        };
+    describe('loginWithSteamGuardCode', () => {
+        it('should call abstractLogin.execute and send response with result, and if truthy call sendWithState', async () => {
+            const parsedData = {
+                username: 'testUser',
+                password: 'testPassword',
+                inviteCode: 'invite',
+                closePage: true,
+                steamGuardCode: '123456', // although schema uses loginSchema validation, extra prop ignored for test
+            };
+            const mockRes = { send: jest.fn() } as unknown as Response;
+            const expectedResult = { success: true };
+            abstractLogin.execute.mockResolvedValue(expectedResult);
 
-        const mockRes = {
-            send: jest.fn(),
-        } as unknown as Response;
+            await controller.loginWithSteamGuardCode(parsedData, mockRes);
 
-        const expectedResult = { success: false };
+            expect(abstractLogin.execute).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    parsedBody: parsedData,
+                    taskName: 'typeSteamGuardCode',
+                    options: { closePage: parsedData.closePage },
+                })
+            );
+            expect(httpCommunicationProvider.sendWithState).toHaveBeenCalledWith({
+                baseUrl: 'http://trade-service.test',
+                path: '/monitor-trades',
+                username: parsedData.username,
+                inviteCode: parsedData.inviteCode,
+            });
+            expect(mockRes.send).toHaveBeenCalledWith({ success: expectedResult });
+        });
 
-        // Мокаем выполнение abstractLogin
-        abstractLogin.execute.mockResolvedValue(false);
+        it('should call abstractLogin.execute and send response with result without calling sendWithState when result is falsy', async () => {
+            const parsedData = {
+                username: 'testUser',
+                password: 'testPassword',
+                inviteCode: 'invite',
+                closePage: false,
+                steamGuardCode: '123456',
+            };
+            const mockRes = { send: jest.fn() } as unknown as Response;
+            abstractLogin.execute.mockResolvedValue(false);
 
-        // act
-        await controller.login(parsedData, mockRes);
+            await controller.loginWithSteamGuardCode(parsedData, mockRes);
 
-        // assert
-        expect(abstractLogin.execute).toHaveBeenCalledWith(
-            expect.objectContaining({
-                parsedBody: parsedData,
-                taskName: 'login',
-                options: { closePage: true },
-            })
-        );
-
-        expect(mockRes.send).toHaveBeenCalledWith(expectedResult);
+            expect(abstractLogin.execute).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    parsedBody: parsedData,
+                    taskName: 'typeSteamGuardCode',
+                    options: { closePage: parsedData.closePage },
+                })
+            );
+            expect(httpCommunicationProvider.sendWithState).not.toHaveBeenCalled();
+            expect(mockRes.send).toHaveBeenCalledWith({ success: false });
+        });
     });
 
-    it('should call abstractLogin.execute and send response as steam guard user account', async () => {
-        // arrange
-        const parsedData = {
-            username: 'testUsername',
-            password: 'testPassword',
-            inviteCode: 'invite',
-        };
+    describe('loginUserWithCookies', () => {
+        it('should call sendWithState and send response with { success: true }', async () => {
+            const parsedData = {
+                username: 'testUser',
+                password: 'testPassword',
+                inviteCode: 'invite',
+                closePage: true,
+                steamGuardCode: '123456',
+            };
+            const mockRes = { send: jest.fn() } as unknown as Response;
 
-        const mockRes = {
-            send: jest.fn(),
-        } as unknown as Response;
+            await controller.loginUserWithCookies(parsedData, mockRes);
 
-        const expectedResult = { success: true, guardState: "SGInput" };
-
-        // Мокаем выполнение abstractLogin
-        abstractLogin.execute.mockResolvedValue(expectedResult);
-
-        // act
-        await controller.login(parsedData, mockRes);
-
-        // assert
-        expect(abstractLogin.execute).toHaveBeenCalledWith(
-            expect.objectContaining({
-                parsedBody: parsedData,
-                taskName: 'login',
-                options: { closePage: true },
-            })
-        );
-
-        expect(mockRes.send).toHaveBeenCalledWith(expectedResult);
+            expect(httpCommunicationProvider.sendWithState).toHaveBeenCalledWith({
+                baseUrl: 'http://trade-service.test',
+                path: '/monitor-trades',
+                username: parsedData.username,
+                inviteCode: parsedData.inviteCode,
+            });
+            expect(mockRes.send).toHaveBeenCalledWith({ success: true });
+        });
     });
-  })
+    describe('CatchFilter', () => {
+        it('should catch and handle errors thrown in controller methods', async () => {
+            // Arrange
+            const error = new Error('Test error');
+            const mockRes = {
+                status: jest.fn().mockReturnThis(),
+                json: jest.fn(),
+            } as any;
+            const mockArgsHost = {
+                switchToHttp: () => ({
+                    getResponse: () => mockRes,
+                }),
+            } as any;
+
+            // Act
+            const filter = new CatchFilter();
+            filter.catch(error, mockArgsHost);
+
+            // Assert
+            expect(mockRes.status).toHaveBeenCalledWith(500);
+            expect(mockRes.json).toHaveBeenCalledWith({
+                message: "Internal Server Error",
+                success: false,
+            });
+        });
+
+        it('should catch and handle app errors (custom errors) thrown in controller methods', async () => {
+            // Arrange
+            const error = new RequestTimeout('Test error');
+            const mockRes = {
+                status: jest.fn().mockReturnThis(),
+                json: jest.fn(),
+            } as any;
+            const mockArgsHost = {
+                switchToHttp: () => ({
+                    getResponse: () => mockRes,
+                }),
+            } as any;
+
+            // Act
+            const filter = new CatchFilter();
+            filter.catch(error, mockArgsHost);
+
+            // Assert
+            expect(mockRes.status).toHaveBeenCalledWith(408);
+            expect(mockRes.json).toHaveBeenCalledWith({
+                message: "Test error",
+                success: false,
+            });
+        });
+    });
 });
