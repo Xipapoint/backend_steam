@@ -10,7 +10,7 @@ import { LoginSteamGuardRequest } from '../shared/dto/login-steamguard/LoginStea
 import { LoginRequest } from '../shared/dto/login/LoginRequestDTO';
 import { AbstractLogin } from './abstract/abstract.login';
 import { SteamAuthService } from './auth.service';
-import { FileCookiePersistenceService } from '../cookies-persistance/CookiesPersistance.service';
+import { FileCookiePersistenceService } from '../cookies-persistance/cookies-persistance.service';
 import { AuthZodValidationPipe } from '../shared/pipes';
 
 enum TASK_NAMES {

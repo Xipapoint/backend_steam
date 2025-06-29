@@ -1,3 +1,3 @@
-import { BaseLoginRequest } from "@backend/nestjs";
+import { BaseLoginRequest } from "../BaseLoginRequest";
 
 export type LoginCookiesRequest = BaseLoginRequest

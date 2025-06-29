@@ -5,7 +5,7 @@ import * as puppeteer from 'puppeteer';
 import { Cookie, CookieJar, CreateCookieOptions } from "tough-cookie";
 import { TASK_NAMES } from "../shared/enums";
 import { PuppeteerClient } from "./puppeteer.client";
-import { FileCookiePersistenceService } from "../cookies-persistance/CookiesPersistance.service";
+import { FileCookiePersistenceService } from "../cookies-persistance/cookies-persistance.service";
 
 const InitializingNewProcesses: Record<TASK_NAMES, boolean> = {
     [TASK_NAMES.typeSteamGuardCode]: false,

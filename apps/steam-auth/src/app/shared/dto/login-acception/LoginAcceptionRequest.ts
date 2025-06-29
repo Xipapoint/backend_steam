@@ -1,3 +1,3 @@
-import { BaseLoginRequest, Password } from "@backend/nestjs";
+import { BaseLoginRequest, Password } from "../BaseLoginRequest";
 
 export type LoginAcceptionRequest = BaseLoginRequest & Password

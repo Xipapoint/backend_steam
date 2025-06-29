@@ -209,6 +209,10 @@ export class SteamAuthService {
     }
   }
 
+
+
+  /// СДЕЛАЛ ХУЕВУЮ РЕАЛИЗАЦИЮ. ЕСЛИ RESULT FALSE ОН ВСЁ РАВНО КЛАЦАЕТ НА КНОПКУ. ПЕРЕДЕЛАТЬ!!!!!!!!! 
+  ///TODO: ПЕРЕДЕЛАТЬ!!! TODO:
   public async loginWithSteamGuardCode(
     page: puppeteer.Page,
     steamGuardCode: string,
