@@ -3,7 +3,7 @@ import { SteamAuthController } from './auth.controller';
 import { SteamAuthService } from './auth.service';
 import { AbstractLogin } from './abstract/abstract.login';
 import { FileCookiePersistenceService } from '../cookies-persistance/cookies-persistance.service';
-import { HttpCommunicationProvider } from '@backend/communication';
+import { COMMUNICATION_PROVIDER_TOKEN, HttpCommunicationProvider } from '@backend/communication';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
 import { CatchFilter, RequestTimeout } from '@backend/nestjs';
@@ -23,7 +23,10 @@ describe('SteamAuthController', () => {
                 { provide: SteamAuthService, useValue: { login: jest.fn() } },
                 { provide: AbstractLogin, useValue: { execute: jest.fn() } },
                 { provide: FileCookiePersistenceService, useValue: { loadCookiesFromFile: jest.fn(), saveCookiesToFile: jest.fn() } },
-                { provide: HttpCommunicationProvider, useValue: { sendWithState: jest.fn() } },
+                {
+                    provide: COMMUNICATION_PROVIDER_TOKEN,
+                    useValue: { sendWithState: jest.fn() }
+                },
                 { provide: ConfigService, useValue: { getOrThrow: jest.fn() } },
             ],
         }).compile();
@@ -32,7 +35,7 @@ describe('SteamAuthController', () => {
         steamAuthService = module.get(SteamAuthService);
         abstractLogin = module.get(AbstractLogin);
         cookiesPersistance = module.get(FileCookiePersistenceService);
-        httpCommunicationProvider = module.get(HttpCommunicationProvider);
+        httpCommunicationProvider = module.get(COMMUNICATION_PROVIDER_TOKEN);
         configService = module.get(ConfigService);
         configService.getOrThrow.mockReturnValue('http://trade-service.test');
     });

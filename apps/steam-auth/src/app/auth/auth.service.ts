@@ -191,7 +191,7 @@ public async login(
         }
         this.logger.debug(`[${actionName}] Action successful.`);
         return result;
-      } catch (error: any) {
+      } catch (error) {
         if (isRateLimited) {
           this.logger.warn(`[${actionName}] Action failed likely due to rate limit (429 detected for ${rateLimitUrl}). Waiting ${waitSeconds} seconds. Error: ${error.message}`);
           await CustomPromiseTimeout(waitSeconds * 1000);

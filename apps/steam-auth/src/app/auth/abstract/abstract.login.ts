@@ -2,6 +2,7 @@ import * as puppeteer from 'puppeteer';
 import { PuppeteerService } from '../../puppeteer/puppeteer.service';
 import { TASK_NAMES } from '../../shared/enums';
 import { BaseLoginRequest } from '../../shared/dto/BaseLoginRequest';
+import { Injectable } from '@nestjs/common';
 
 interface LoginOptions {
     closePage?: boolean
@@ -17,7 +18,7 @@ interface ExecuteParams<T, K> {
 }
 
 
-
+@Injectable()
 export class AbstractLogin {
     constructor(private readonly puppeteerService: PuppeteerService){}
 

@@ -1,17 +1,17 @@
-import { HttpCommunicationProvider } from '@backend/communication';
+import { COMMUNICATION_PROVIDER_TOKEN, CommunicationProvider } from '@backend/communication';
 import { CatchFilter, ZodValidationPipe } from '@backend/nestjs';
-import { Body, Controller, Injectable, Logger, Post, Res, UseFilters } from '@nestjs/common';
+import { Body, Controller, Inject, Injectable, Post, Res, UseFilters } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
 import { z, ZodType, ZodTypeDef } from 'zod';
+import { FileCookiePersistenceService } from '../cookies-persistance/cookies-persistance.service';
 import { LoginAcceptionRequest } from '../shared/dto/login-acception/LoginAcceptionRequest';
 import { LoginResult } from '../shared/dto/login-result/LoginResult';
 import { LoginSteamGuardRequest } from '../shared/dto/login-steamguard/LoginSteamGuardRequest';
 import { LoginRequest } from '../shared/dto/login/LoginRequestDTO';
+import { AuthZodValidationPipe } from '../shared/pipes';
 import { AbstractLogin } from './abstract/abstract.login';
 import { SteamAuthService } from './auth.service';
-import { FileCookiePersistenceService } from '../cookies-persistance/cookies-persistance.service';
-import { AuthZodValidationPipe } from '../shared/pipes';
 
 enum TASK_NAMES {
     login = "login",
@@ -40,13 +40,13 @@ const loginSchema = z
 @Controller('auth')
 @Injectable()
 export class SteamAuthController {
-    private readonly logger: Logger = new Logger(SteamAuthController.name);
 
     constructor(
         private readonly steamAuthService: SteamAuthService, 
         private readonly abstractLogin: AbstractLogin,
         private readonly cookiesPersistance: FileCookiePersistenceService,
-        private readonly httpCommunicationProvider: HttpCommunicationProvider,
+        @Inject(COMMUNICATION_PROVIDER_TOKEN)
+        private readonly httpCommunicationProvider: CommunicationProvider,
         private readonly configService: ConfigService
     ) {}
 

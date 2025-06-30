@@ -1,21 +1,17 @@
-import { Inject, Injectable, Logger } from "@nestjs/common";
-import axios, { AxiosError } from "axios";
-import { wrapper } from 'axios-cookiejar-support';
-import { CookieJar } from "tough-cookie";
-import { CookiePersistenceService, StatefulRequestOptions, TradeMonitoringTaskDto } from "../../interfaces";
+import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from '@nestjs/config';
+import axios, { AxiosError } from "axios";
+import { CommunicationProvider, StatefulRequestOptions, TradeMonitoringTaskDto } from "../../interfaces";
 
 export const COOKIE_PERSISTENCE_SERVICE = 'COOKIE_PERSISTENCE_SERVICE';
 
 @Injectable()
-export class HttpCommunicationProvider {
+export class HttpCommunicationProvider implements CommunicationProvider {
   private readonly logger = new Logger(HttpCommunicationProvider.name);
   private readonly DEFAULT_MAX_RETRIES = 3;
   private readonly DEFAULT_RETRY_DELAY = 2000;
 
   constructor(
-    @Inject(COOKIE_PERSISTENCE_SERVICE)
-    private readonly cookiePersistence: CookiePersistenceService,
     private readonly configService: ConfigService
   ) {}
 
