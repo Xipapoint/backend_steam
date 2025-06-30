@@ -4,7 +4,7 @@ import { Body, Controller, Inject, Injectable, Post, Res, UseFilters } from '@ne
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
 import { z, ZodType, ZodTypeDef } from 'zod';
-import { FileCookiePersistenceService } from '../cookies-persistance/cookies-persistance.service';
+import { COOKIE_PERSISTENCE_SERVICE, CookiePersistenceService, FileCookiePersistenceService } from '@backend/cookies';
 import { LoginAcceptionRequest } from '../shared/dto/login-acception/LoginAcceptionRequest';
 import { LoginResult } from '../shared/dto/login-result/LoginResult';
 import { LoginSteamGuardRequest } from '../shared/dto/login-steamguard/LoginSteamGuardRequest';
@@ -44,7 +44,8 @@ export class SteamAuthController {
     constructor(
         private readonly steamAuthService: SteamAuthService, 
         private readonly abstractLogin: AbstractLogin,
-        private readonly cookiesPersistance: FileCookiePersistenceService,
+        @Inject(COOKIE_PERSISTENCE_SERVICE)
+        private readonly cookiePersistence: CookiePersistenceService,
         @Inject(COMMUNICATION_PROVIDER_TOKEN)
         private readonly httpCommunicationProvider: CommunicationProvider,
         private readonly configService: ConfigService
@@ -82,8 +83,8 @@ export class SteamAuthController {
                     controllerCallback: this.steamAuthService.login.bind(this.steamAuthService),
                     parsedBody: parsedData,
                     taskName: TASK_NAMES.loginWithAcception,
-                    loadCookiesFn: this.cookiesPersistance.loadCookiesFromFile.bind(this),
-                    saveCookiesFn: this.cookiesPersistance.saveCookiesToFile.bind(this),
+                    loadCookiesFn: this.cookiePersistence.loadCookiesFromFile.bind(this),
+                    saveCookiesFn: this.cookiePersistence.saveCookiesToFile.bind(this),
                 }
             )
             res.send({success})
@@ -109,7 +110,7 @@ export class SteamAuthController {
                     controllerCallback: this.steamAuthService.login.bind(this.steamAuthService),
                     parsedBody: parsedData,
                     taskName: TASK_NAMES.typeSteamGuardCode,
-                    saveCookiesFn: this.cookiesPersistance.saveCookiesToFile.bind(this),
+                    saveCookiesFn: this.cookiePersistence.saveCookiesToFile.bind(this),
                     options: { closePage: parsedData.closePage }
                 }
             )

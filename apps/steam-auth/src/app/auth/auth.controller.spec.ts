@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { SteamAuthController } from './auth.controller';
 import { SteamAuthService } from './auth.service';
 import { AbstractLogin } from './abstract/abstract.login';
-import { FileCookiePersistenceService } from '../cookies-persistance/cookies-persistance.service';
+import { FileCookiePersistenceService } from '@backend/cookies';
 import { COMMUNICATION_PROVIDER_TOKEN, HttpCommunicationProvider } from '@backend/communication';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';

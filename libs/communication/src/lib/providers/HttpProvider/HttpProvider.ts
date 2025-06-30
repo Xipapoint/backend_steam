@@ -3,8 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import axios, { AxiosError } from "axios";
 import { CommunicationProvider, StatefulRequestOptions, TradeMonitoringTaskDto } from "../../interfaces";
 
-export const COOKIE_PERSISTENCE_SERVICE = 'COOKIE_PERSISTENCE_SERVICE';
-
 @Injectable()
 export class HttpCommunicationProvider implements CommunicationProvider {
   private readonly logger = new Logger(HttpCommunicationProvider.name);

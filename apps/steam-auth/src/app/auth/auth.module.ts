@@ -1,10 +1,10 @@
 import { CommunicationModule } from "@backend/communication";
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
-import { CookiePersistenceModule } from "../cookies-persistance/cookies-persistance.module";
 import { AbstractLogin } from "./abstract/abstract.login";
 import { SteamAuthController } from "./auth.controller";
 import { SteamAuthService } from "./auth.service";
+import {CookiePersistenceModule} from '@backend/cookies'
 
 @Module({
     imports: [ 

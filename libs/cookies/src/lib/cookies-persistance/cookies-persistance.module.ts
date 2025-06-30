@@ -1,4 +1,4 @@
-import { COOKIE_PERSISTENCE_SERVICE } from "@backend/communication";
+import { COOKIE_PERSISTENCE_SERVICE } from "./consts/cookie-persistance-token";
 import { Module } from "@nestjs/common";
 import { FileCookiePersistenceService } from "./cookies-persistance.service";
 

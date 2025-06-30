@@ -5,7 +5,8 @@ import { ScarpingService } from "../scarping/scarping.service";
 import { CustomPromiseTimeout } from "../shared";
 import { WarehouseService } from "../warehouse/warehouse.service";
 import { InventoryItem, InventoryItemForTrade } from "./dto";
-import { COOKIE_PERSISTENCE_SERVICE, CookiePersistenceService, TradeMonitoringTaskDto } from '@backend/communication'
+import {TradeMonitoringTaskDto } from '@backend/communication'
+import { COOKIE_PERSISTENCE_SERVICE, CookiePersistenceService } from '@backend/cookies'
 import { wrapper } from "axios-cookiejar-support";
 
 @Injectable()

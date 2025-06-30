@@ -1,7 +1,11 @@
-import { CookiePersistenceService } from "@backend/communication";
+
 import { Injectable, Logger } from "@nestjs/common";
+import { CookiePersistenceService } from "./interface";
 import * as puppeteer from 'puppeteer';
 import { Cookie, CookieJar, CreateCookieOptions } from "tough-cookie";
+
+
+
 @Injectable()
 export class FileCookiePersistenceService implements CookiePersistenceService {
     private readonly logger = new Logger(FileCookiePersistenceService.name);
@@ -24,7 +28,7 @@ export class FileCookiePersistenceService implements CookiePersistenceService {
                 const cookiesJson = await fs.readFile(cookiePath, 'utf-8');
                 this.logger.log(`Cookies loaded for user ${username}`);
                 return JSON.parse(cookiesJson);
-            } catch (error) {
+            } catch (error: any) {
                 if (error.code === 'ENOENT') {
                     this.logger.warn(`Cookie file not found for user ${username}. Starting fresh session.`);
                     return [];
@@ -79,7 +83,7 @@ try {
                     for (const tCookie of toughCookies) {
                         const isSession = tCookie.expires === "Infinity" || !tCookie.expires;
                         const pCookie: puppeteer.Cookie = {
-                            name: tCookie.key, value: tCookie.value, domain: tCookie.domain,
+                            name: tCookie.key, value: tCookie.value, domain: tCookie.domain as string,
                             path: tCookie.path || '/',
                             expires: isSession || !tCookie.expires ? -1 : Math.floor((tCookie.expires as Date).getTime() / 1000),
                             httpOnly: tCookie.httpOnly || false, secure: tCookie.secure || false,

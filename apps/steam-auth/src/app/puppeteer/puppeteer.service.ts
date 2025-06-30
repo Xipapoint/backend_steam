@@ -1,10 +1,10 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import fs from 'fs';
 import path from "path";
 import * as puppeteer from 'puppeteer';
-import { FileCookiePersistenceService } from "../cookies-persistance/cookies-persistance.service";
 import { TASK_NAMES } from "../shared/enums";
 import { PuppeteerClient } from "./puppeteer.client";
+import { COOKIE_PERSISTENCE_SERVICE, CookiePersistenceService } from "@backend/cookies";
 
 const InitializingNewProcesses: Record<TASK_NAMES, boolean> = {
     [TASK_NAMES.typeSteamGuardCode]: false,
@@ -18,7 +18,8 @@ const InitializingNewProcesses: Record<TASK_NAMES, boolean> = {
 export class PuppeteerService {
         private readonly logger = new Logger(PuppeteerService.name)
     constructor(
-        private readonly cookiesPersistance: FileCookiePersistenceService,
+        @Inject(COOKIE_PERSISTENCE_SERVICE)
+        private readonly cookiePersistence: CookiePersistenceService,
         private sessions: Map<string, puppeteer.BrowserContext> = new Map(),
         private readonly browserClient: PuppeteerClient,
     ) {}
@@ -66,13 +67,13 @@ export class PuppeteerService {
                 }
                 if (loadCookiesFn) {
                     this.logger.log(`[User: ${username}] Loading cookies...`);
-                    await page.setCookie(... (await this.cookiesPersistance.loadCookiesFromFile(username)))
+                    await page.setCookie(... (await this.cookiePersistence.loadCookiesFromFile(username)))
                 }
                 const result = await taskFn(page);
 
                 if (saveCookiesFn && result) {
                     this.logger.log(`[User: ${username}] Saving cookies...`);
-                    await this.cookiesPersistance.saveCookiesToFile(username, await page.cookies());
+                    await this.cookiePersistence.saveCookiesToFile(username, await page.cookies());
                 }
                 this.logger.log(`[User: ${username}] [Task: ${taskName}] successful.`);
                 return result;
