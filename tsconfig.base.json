@@ -1,6 +1,7 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
+    "esModuleInterop": true,
     "rootDir": ".",
     "sourceMap": true,
     "declaration": false,
@@ -17,6 +18,7 @@
     "paths": {
       "@backend/communication": ["libs/communication/src/index.ts"],
       "@backend/cookies": ["libs/cookies/src/index.ts"],
+      "@backend/database": ["libs/database/src/index.ts"],
       "@backend/nestjs": ["libs/nestjs/src/index.ts"]
     }
   },

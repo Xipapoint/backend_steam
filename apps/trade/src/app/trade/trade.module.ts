@@ -1,20 +1,9 @@
 import { Module } from "@nestjs/common";
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { TradeService } from "./trade.service";
 import { ScarpingModule } from "../scarping/scarping.module";
 import { WarehouseModule } from "../warehouse/warehouse.module";
+import { TradeService } from "./trade.service";
 @Module({
   imports: [
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: 'localhost',
-      port: 5432,
-      username: 'root',
-      password: 'root',
-      database: 'test',
-      entities: [],
-      synchronize: true,
-    }),
     ScarpingModule,
     WarehouseModule,
   ],

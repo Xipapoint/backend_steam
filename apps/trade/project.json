@@ -39,6 +39,20 @@
       "options": {
         "passWithNoTests": true
       }
+    },
+    "typeorm-generate-migration": {
+      "command": "typeorm migration:generate -d ./src/data-source.ts ./src/$NX_ARG_module/migrations/$NX_ARG_name",
+      "options": {
+        "cwd": "{projectRoot}"
+      },
+      "cache": false
+    },
+    "typeorm-run-migration": {
+      "command": "typeorm migration:run -d ./src/data-source.ts",
+      "options": {
+        "cwd": "{projectRoot}"
+      },
+      "cache": false
     }
   }
 }
