@@ -41,7 +41,7 @@
       }
     },
     "typeorm-generate-migration": {
-      "command": "typeorm migration:generate -d ./src/data-source.ts ./src/$NX_ARG_module/migrations/$NX_ARG_name",
+      "command": "ts-node -P ./tsconfig.app.json -r tsconfig-paths/register ../../tools/typeorm.custom-cli.ts migration:generate -d ./src/app/data-source.ts ./src/app/{args.module}/migrations/{args.name}",
       "options": {
         "cwd": "{projectRoot}"
       },

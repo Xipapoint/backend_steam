@@ -1,9 +1,10 @@
-import { Body, Controller, Get, HttpException, HttpStatus, Logger, Param, Post, UseGuards } from "@nestjs/common";
+import { AdminCheckGuard, BadRequest, CatchFilter, NotFound } from "@backend/nestjs";
+import { Body, Catch, Controller, Get, Logger, Param, Post, UseGuards } from "@nestjs/common";
 import { ReferralService } from "./referral.service";
-import { AdminCheckGuard } from "@backend/nestjs";
 
 @Controller('referral')
 @UseGuards(AdminCheckGuard)
+@Catch(CatchFilter)
 export class ReferralController {
   private readonly logger = new Logger(ReferralController.name);
 
@@ -15,10 +16,10 @@ export class ReferralController {
     @Body('hubFaceitId') hubFaceitId: string
   ): Promise<{ success: boolean; message: string }> {
     if (!name || !name.length) {
-      throw new HttpException('Name is required', HttpStatus.BAD_REQUEST);
+      throw new BadRequest('Name is required');
     }
     if (!hubFaceitId || !hubFaceitId.length) {
-      throw new HttpException('Hub id is required', HttpStatus.BAD_REQUEST);
+      throw new BadRequest('Hub id is required');
     }
 
     const code = await this.referralService.createRefferalByName(name, hubFaceitId);
@@ -31,13 +32,13 @@ export class ReferralController {
   ): Promise<{ success: boolean; message: string }> {
     if (!code || !code.length) {
       this.logger.error('Code is required');
-      throw new HttpException('Code is required', HttpStatus.BAD_REQUEST);
+      throw new BadRequest('Code is required');
     }
 
     const referralName = await this.referralService.getRefferalNameByCode(code);
     if (!referralName) {
       this.logger.error('Referral not found');
-      throw new HttpException('Referral not found', HttpStatus.NOT_FOUND);
+      throw new NotFound('Referral not found');
     }
 
     return { success: true, message: referralName.owner };
@@ -47,5 +48,19 @@ export class ReferralController {
   async getDefaultReferral(): Promise<{ success: boolean; message: string }> {
     const code = await this.referralService.getDefaultRefferalCode();
     return { success: true, message: code };
+  }
+
+  @Post('set-default/:code')
+  async setDefault(
+    @Param('code') code: string,
+    @Body('value') value: boolean
+  ): Promise<{ success: boolean; message: string }> {
+      if (!code || !code.length) {
+        this.logger.error('Code is required');
+        throw new BadRequest('Code is required');
+      }
+
+      const success = await this.referralService.setDefaultValueRefferalCode(code, value)
+      return { success, message: code }
   }
 }

@@ -1,10 +1,8 @@
+import { getTypeOrmConfig } from '@backend/database'; // Убедитесь, что этот путь верен
 import 'dotenv/config';
 import { DataSource } from 'typeorm';
-import { ConfigService } from '@nestjs/config';
-import { getTypeOrmConfig } from '@backend/database'; // Убедитесь, что этот путь верен
 
-const configService = new ConfigService();
-const options = getTypeOrmConfig(configService);
+const options = getTypeOrmConfig(__dirname);
 
 console.log('Resolved TypeORM Config', options);
 

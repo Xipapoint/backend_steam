@@ -1,12 +1,9 @@
+import { getTypeOrmConfig } from '@backend/database';
 import 'dotenv/config';
 import { DataSource } from 'typeorm';
-import { ConfigService } from '@nestjs/config';
-import { getTypeOrmConfig } from '@backend/database';
 
-const configService = new ConfigService();
+const options = getTypeOrmConfig(__dirname);
 
-export const AppDataSource = new DataSource(
-  getTypeOrmConfig(configService)
-);
+console.log('Resolved TypeORM Config', options);
 
-export default AppDataSource;
+export const AppDataSource = new DataSource(options);

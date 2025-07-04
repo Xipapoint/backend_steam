@@ -3,6 +3,8 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { RefferalLink } from "./entities/ReferralLink";
 import { HubService } from "../hub/hub.service";
+import { NotFound } from "@backend/nestjs";
+import { boolean } from "zod";
 
 @Injectable()
 export class ReferralService {
@@ -54,20 +56,21 @@ export class ReferralService {
         }
         return {owner: refferal.owner, hubFaceitId: hub.faceitId, hubImage: hub.hubImage, hubName: hub.hubName, amountUsers: hub.amountUsers};
     }
-
-    public async setDefaultRefferalCode(refferalCode: string) {
+    
+    public async setDefaultValueRefferalCode(refferalCode: string, value: boolean) {
       const refferal = await this.refferalRepository.findOne({where: {code: refferalCode}})
       if(!refferal) {
-        throw new Error("Couldnt find refferal")
+        throw new NotFound("Couldnt find refferal")
       }
-      refferal.isDefault = true
+      refferal.isDefault = value
       await this.refferalRepository.save(refferal)
+      return true
     }
 
     public async getDefaultRefferalCode() {
       const refferal = await this.refferalRepository.findOne({ where: {isDefault: true} });
       if(!refferal) {
-        throw new Error("Couldnt find refferal while fetching default refferal")
+        throw new NotFound("Couldnt find refferal while fetching default refferal")
       }
       return refferal?.code
     }
