@@ -14,7 +14,7 @@ export class PuppeteerClient implements OnModuleInit {
         this.logger.log("Initializing browser...");
         try {
             const BROWSER_CONFIG: puppeteer.LaunchOptions = {
-                headless: this.configService.get<boolean>('PUPPETEER_HEADLESS', true),
+                headless: false,
                 args: [
                     '--disable-gpu',
                     '--disable-dev-shm-usage',

@@ -2,9 +2,14 @@ import { Module } from "@nestjs/common";
 import { HubModule } from "../hub/hub.module";
 import { ReferralService } from "./referral.service";
 import { ReferralController } from "./referral.controller";
+import { RefferalLink } from "./entities/ReferralLink";
+import { TypeOrmModule } from "@nestjs/typeorm";
 
 @Module({
-    imports: [HubModule],
+    imports: [
+        HubModule,
+        TypeOrmModule.forFeature([RefferalLink])
+    ],
     providers: [ReferralService],
     controllers: [ReferralController]
 })

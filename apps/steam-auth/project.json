@@ -48,7 +48,7 @@
       "cache": false
     },
     "typeorm-run-migration": {
-      "command": "typeorm migration:run -d ./src/data-source.ts",
+      "command": "ts-node -P ./tsconfig.app.json -r tsconfig-paths/register ../../tools/typeorm.custom-cli.ts migration:run -d ./src/app/data-source.ts",
       "options": {
         "cwd": "{projectRoot}"
       },

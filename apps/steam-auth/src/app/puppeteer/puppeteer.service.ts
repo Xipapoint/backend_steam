@@ -17,10 +17,10 @@ const InitializingNewProcesses: Record<TASK_NAMES, boolean> = {
 @Injectable()
 export class PuppeteerService {
         private readonly logger = new Logger(PuppeteerService.name)
+        private sessions: Map<string, puppeteer.BrowserContext> = new Map()
     constructor(
         @Inject(COOKIE_PERSISTENCE_SERVICE)
         private readonly cookiePersistence: CookiePersistenceService,
-        private sessions: Map<string, puppeteer.BrowserContext> = new Map(),
         private readonly browserClient: PuppeteerClient,
     ) {}
     private async initializeNewProcess(username: string, context: puppeteer.BrowserContext | null, page: puppeteer.Page | null) {

@@ -4,12 +4,12 @@ import { TASK_NAMES } from '../../shared/enums';
 import { BaseLoginRequest } from '../../shared/dto/BaseLoginRequest';
 import { Injectable } from '@nestjs/common';
 
-interface LoginOptions {
+export interface LoginOptions {
     closePage?: boolean
 }
 
 interface ExecuteParams<T, K> {
-    controllerCallback: (page: puppeteer.Page, parsedBody: T) => Promise<K>,
+    controllerCallback: (page: puppeteer.Page, parsedBody: T, options: LoginOptions) => Promise<K>,
     parsedBody: T,
     taskName: TASK_NAMES,
     loadCookiesFn?: (page: puppeteer.Page, username: string) => Promise<void>,
@@ -36,7 +36,7 @@ export class AbstractLogin {
             this.puppeteerService.deleteContext(parsedBody.username);
 
         const taskFn = (page: puppeteer.Page): Promise<K> =>
-            controllerCallback(page, parsedBody);
+            controllerCallback(page, parsedBody, options);
 
         return await this.puppeteerService.executePuppeteerTask(
             parsedBody.username,

@@ -1,6 +1,5 @@
-import { ConfigService } from '@nestjs/config';
-import path = require('path');
 import { DataSourceOptions } from 'typeorm';
+import path = require('path');
 export const getTypeOrmConfig = (baseDir: string): DataSourceOptions => ({
   type: 'postgres',
   host: 'localhost',

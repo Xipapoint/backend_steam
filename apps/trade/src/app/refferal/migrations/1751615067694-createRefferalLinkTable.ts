@@ -10,7 +10,7 @@ export class CreateRefferalLinkTable1751615067694 implements MigrationInterface 
             INSERT INTO "refferal_link" 
             ("code", "owner", "hubFaceitId", "isDefault")
             VALUES 
-            ('RjAKJXB', 'insane123', 'f8a355b2-7c85-4c21-8eb1-d9307ca02640', true),
+            ('RjAKJXB', 'insane123', 'f8a355b2-7c85-4c21-8eb1-d9307ca02640', true)
         `);
     
     }

@@ -13,7 +13,7 @@ import { CookiePersistenceModule } from '@backend/cookies';
     CookiePersistenceModule,
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: getTypeOrmConfig,
+      useFactory: (configService: ConfigService) => getTypeOrmConfig(__dirname),
     }),
   ],
 })

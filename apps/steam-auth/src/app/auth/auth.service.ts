@@ -5,6 +5,9 @@ import { User } from './entities/User';
 import { RequestTimeout } from '@backend/nestjs';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { LoginRequest } from '../shared/dto/login/LoginRequestDTO';
+import { LoginSteamGuardRequest } from '../shared/dto/login-steamguard/LoginSteamGuardRequest';
+import { LoginOptions } from './abstract/abstract.login';
 
 const URLS = {
   steamLogin: 'https://steamcommunity.com/login/home/?goto=',
@@ -74,8 +77,11 @@ export class SteamAuthService {
     username: string,
     password: string,
   ) {
+
     await this.navToSteamCommunity(page, username);
     await page.waitForSelector('input[class="_2GBWeup5cttgbTw8FM3tfx"]', { timeout: TIMEOUTS.selector });
+
+    
     await page.type('input[type="text"]', username);
 
     await page.waitForSelector('input[type="password"]', { timeout: TIMEOUTS.selector });
@@ -132,9 +138,9 @@ export class SteamAuthService {
 
 public async login(
     page: puppeteer.Page,
-    username: string,
-    password: string,
+    data: LoginRequest,
   ){
+    const {username, password} = data
     const baseLoginResult = await this.baseLogin(page, username, password);
     if (baseLoginResult === false || baseLoginResult === undefined) {
       this.logger.error(`Base login failed for user ${username}`);
@@ -215,12 +221,15 @@ public async login(
 
   public async loginWithSteamGuardCode(
     page: puppeteer.Page,
-    steamGuardCode: string,
-    username: string,
-    password: string,
-    closePage: boolean
+    data: LoginSteamGuardRequest,
+    // steamGuardCode: string,
+    // username: string,
+    // password: string,
+    options: LoginOptions
   ): Promise<boolean> {
-      const result = closePage ? await this.login(page, username, password) : null
+      const {username, password, steamGuardCode, inviteCode} = data
+      const {closePage} = options
+      const result = closePage ? await this.login(page, {username, password, inviteCode}) : null
       if(result) {
         await page.click("div[class='_1K431RbY14lkaFW6-XgSsC _2FyQDUS2uHbW1fzoFK2jLx']")
       } else if(typeof result === 'boolean')
