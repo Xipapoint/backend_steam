@@ -3,13 +3,13 @@ import { Body, Catch, Controller, Get, Logger, Param, Post, UseGuards } from "@n
 import { ReferralService } from "./referral.service";
 
 @Controller('referral')
-@UseGuards(AdminCheckGuard)
 @Catch(CatchFilter)
 export class ReferralController {
   private readonly logger = new Logger(ReferralController.name);
 
   constructor(private readonly referralService: ReferralService) {}
 
+  @UseGuards(AdminCheckGuard)
   @Post('create')
   async createReferralByName(
     @Body('name') name: string,
@@ -26,7 +26,7 @@ export class ReferralController {
     return { success: true, message: code };
   }
 
-  @Get('get-referral/:code')
+  @Get('get-name/:code')
   async getReferralNameByCode(
     @Param('code') code: string
   ): Promise<{ success: boolean; message: string }> {
@@ -50,6 +50,7 @@ export class ReferralController {
     return { success: true, message: code };
   }
 
+  @UseGuards(AdminCheckGuard)
   @Post('set-default/:code')
   async setDefault(
     @Param('code') code: string,
