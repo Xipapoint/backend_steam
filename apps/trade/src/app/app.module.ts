@@ -7,7 +7,7 @@ import { HubModule } from './hub/hub.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { getTypeOrmConfig } from '@backend/database';
-import { DataSourceOptions } from 'typeorm';
+import { DataSourceOptions } from 'typeorm'
 
 @Module({
   imports: [
@@ -19,7 +19,7 @@ import { DataSourceOptions } from 'typeorm';
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService): DataSourceOptions => getTypeOrmConfig(__dirname),
+      useFactory: (configService: ConfigService): DataSourceOptions => getTypeOrmConfig(),
     }),
   ],
 })

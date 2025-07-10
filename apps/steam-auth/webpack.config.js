@@ -1,4 +1,5 @@
 const { NxAppWebpackPlugin } = require('@nx/webpack/app-plugin');
+const path = require('path');
 const { join } = require('path');
 
 module.exports = {
@@ -11,10 +12,12 @@ module.exports = {
       compiler: 'tsc',
       main: './src/main.ts',
       tsConfig: './tsconfig.app.json',
-      assets: ['./src/assets'],
+      assets: [
+        './src/assets', 
+      ],
       optimization: false,
       outputHashing: 'none',
-      generatePackageJson: true,
+      generatePackageJson: true,  
     }),
   ],
 };

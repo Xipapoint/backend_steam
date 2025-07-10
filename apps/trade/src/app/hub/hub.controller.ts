@@ -1,4 +1,4 @@
-import { Body, Controller, HttpException, HttpStatus, Logger, Post } from "@nestjs/common";
+import { Body, Controller, HttpException, HttpStatus, Logger, Post } from "@nestjs/common"
 import { HubService } from "./hub.service";
 
 @Controller('hub')

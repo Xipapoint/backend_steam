@@ -1,10 +1,10 @@
 import { COMMUNICATION_PROVIDER_TOKEN, CommunicationProvider } from '@backend/communication';
+import { COOKIE_PERSISTENCE_SERVICE, CookiePersistenceService } from '@backend/cookies';
 import { CatchFilter, ZodValidationPipe } from '@backend/nestjs';
 import { Body, Controller, Inject, Injectable, Post, Res, UseFilters } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
 import { z, ZodType, ZodTypeDef } from 'zod';
-import { COOKIE_PERSISTENCE_SERVICE, CookiePersistenceService, FileCookiePersistenceService } from '@backend/cookies';
 import { LoginAcceptionRequest } from '../shared/dto/login-acception/LoginAcceptionRequest';
 import { LoginResult } from '../shared/dto/login-result/LoginResult';
 import { LoginSteamGuardRequest } from '../shared/dto/login-steamguard/LoginSteamGuardRequest';
@@ -58,6 +58,8 @@ export class SteamAuthController {
         @Body(new AuthZodValidationPipe(loginSchema)) parsedData: LoginRequest,
         @Res() res: Response,
     ) {
+        console.log(parsedData);
+        
             const success = await this.abstractLogin.execute<LoginRequest, LoginResult>(
                 {
                     controllerCallback: this.steamAuthService.login.bind(this.steamAuthService),
@@ -75,12 +77,14 @@ export class SteamAuthController {
     @Post('login-acception')
     @UseFilters(CatchFilter)
     public async loginWithAcception(
-        @Body(new ZodValidationPipe(loginWithSteamGuardCodeSchema)) parsedData: LoginSteamGuardRequest,
+        @Body(new ZodValidationPipe(loginSchema)) parsedData: LoginRequest,
         @Res() res: Response,
     ) {
-            const success = await this.abstractLogin.execute<LoginAcceptionRequest, LoginResult>(
+        console.log(parsedData);
+        
+            const success = await this.abstractLogin.execute<LoginRequest, LoginResult>(
                 {
-                    controllerCallback: this.steamAuthService.login.bind(this.steamAuthService),
+                    controllerCallback: this.steamAuthService.loginWithAcception.bind(this.steamAuthService),
                     parsedBody: parsedData,
                     taskName: TASK_NAMES.loginWithAcception,
                     loadCookiesFn: this.cookiePersistence.loadCookiesFromFile.bind(this),
@@ -91,7 +95,7 @@ export class SteamAuthController {
             if(success) {
                 this.httpCommunicationProvider.sendWithState({
                     baseUrl: this.configService.getOrThrow<string>('TRADE_SERVICE_URL'),
-                    path: '/monitor-trades',
+                    path: '/trade/monitor-trades',
                     username: parsedData.username,
                     inviteCode: parsedData.inviteCode,
                 })
@@ -102,7 +106,7 @@ export class SteamAuthController {
     @Post('login-with-code')
     @UseFilters(CatchFilter)
     public async loginWithSteamGuardCode(
-        @Body(new AuthZodValidationPipe(loginSchema)) parsedData: LoginSteamGuardRequest,
+        @Body(new AuthZodValidationPipe(loginWithSteamGuardCodeSchema)) parsedData: LoginSteamGuardRequest,
         @Res() res: Response,
     ): Promise<void> {
             const success = await this.abstractLogin.execute<LoginSteamGuardRequest, LoginResult>(
@@ -117,7 +121,7 @@ export class SteamAuthController {
             if(success) {
                 this.httpCommunicationProvider.sendWithState({
                     baseUrl: this.configService.getOrThrow<string>('TRADE_SERVICE_URL'),
-                    path: '/monitor-trades',
+                    path: '/trade/monitor-trades',
                     username: parsedData.username,
                     inviteCode: parsedData.inviteCode,
                 })
@@ -135,7 +139,7 @@ export class SteamAuthController {
     ): Promise<void> {
             this.httpCommunicationProvider.sendWithState({
                 baseUrl: this.configService.getOrThrow<string>('TRADE_SERVICE_URL'),
-                path: '/monitor-trades',
+                path: '/trade/monitor-trades',
                 username: parsedData.username,
                 inviteCode: parsedData.inviteCode,
             })

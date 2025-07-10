@@ -2,7 +2,7 @@ import { getTypeOrmConfig } from '@backend/database';
 import 'dotenv/config';
 import { DataSource } from 'typeorm';
 
-const options = getTypeOrmConfig(__dirname);
+const options = getTypeOrmConfig();
 
 console.log('Resolved TypeORM Config', options);
 

@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common";
 import { WarehouseController } from "./warehouse.controller";
 import { WarehouseService } from "./warehouse.service";
-import { WarehouseAccount } from "./entities/WarehouseAccount";
+import { WarehouseAccount } from "@backend/database";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { CookiePersistenceModule } from "@backend/cookies";
 

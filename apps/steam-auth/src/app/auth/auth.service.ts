@@ -1,6 +1,6 @@
 import * as puppeteer from 'puppeteer';
 import { Repository } from 'typeorm';
-import { User } from './entities/User';
+import { User } from '@backend/database';
 
 import { RequestTimeout } from '@backend/nestjs';
 import { Injectable, Logger } from '@nestjs/common';
@@ -162,9 +162,10 @@ public async login(
 
   public async loginWithAcception(
     page: puppeteer.Page,
-    username: string,
-    password: string
+    data: LoginRequest
   ) {
+    const {username, password} = data
+    
     try {
       await this.pageNavigation(page, TIMEOUTS.longNavigation).catch(() => {
         throw new RequestTimeout(`Timeout: Main page navigation failed. User: ${username}`)

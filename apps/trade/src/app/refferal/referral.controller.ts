@@ -44,6 +44,24 @@ export class ReferralController {
     return { success: true, message: referralName.owner };
   }
 
+    @Get('get-data/:code')
+  async getReferralDataByCode(
+    @Param('code') code: string
+  ) {
+    if (!code || !code.length) {
+      this.logger.error('Code is required');
+      throw new BadRequest('Code is required');
+    }
+
+    const referralData = await this.referralService.getRefferalDataByCode(code);
+    if (!referralData) {
+      this.logger.error('Referral not found');
+      throw new NotFound('Referral not found');
+    }
+
+    return { success: true, message: referralData };
+  }
+
   @Get('get-default')
   async getDefaultReferral(): Promise<{ success: boolean; message: string }> {
     const code = await this.referralService.getDefaultRefferalCode();

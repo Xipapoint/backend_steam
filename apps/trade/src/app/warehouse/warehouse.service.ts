@@ -1,5 +1,5 @@
 import { Repository } from "typeorm";
-import { WarehouseAccount } from "./entities/WarehouseAccount";
+import { WarehouseAccount } from "@backend/database";
 import { InjectRepository } from '@nestjs/typeorm';
 import { Injectable, Logger } from "@nestjs/common";
 @Injectable()

@@ -41,14 +41,14 @@
       }
     },
     "typeorm-generate-migration": {
-      "command": "ts-node -P ./tsconfig.app.json -r tsconfig-paths/register ../../tools/typeorm.custom-cli.ts migration:generate -d ./src/app/data-source.ts ./src/app/{args.module}/migrations/{args.name}",
+      "command": "ts-node -P ./tsconfig.app.json -r tsconfig-paths/register ../../tools/typeorm.custom-cli.ts migration:generate -d ./src/data-source.ts ./src/app/{args.module}/migrations/{args.name}",
       "options": {
         "cwd": "{projectRoot}"
       },
       "cache": false
     },
     "typeorm-run-migration": {
-      "command": "ts-node -P ./tsconfig.app.json -r tsconfig-paths/register ../../tools/typeorm.custom-cli.ts migration:run -d ./src/app/data-source.ts",
+      "command": "ts-node -P ./tsconfig.app.json -r tsconfig-paths/register ../../tools/typeorm.custom-cli.ts migration:run -d ./src/data-source.ts",
       "options": {
         "cwd": "{projectRoot}"
       },

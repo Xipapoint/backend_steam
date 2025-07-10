@@ -32,8 +32,8 @@ export class AbstractLogin {
             options
         }: ExecuteParams<T, K>
     ) {
-        if(options.closePage)
-            this.puppeteerService.deleteContext(parsedBody.username);
+        if(options && options.closePage)
+            await this.puppeteerService.deleteContext(parsedBody.username);
 
         const taskFn = (page: puppeteer.Page): Promise<K> =>
             controllerCallback(page, parsedBody, options);

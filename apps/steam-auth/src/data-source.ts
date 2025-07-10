@@ -2,8 +2,8 @@ import { getTypeOrmConfig } from '@backend/database'; // Убедитесь, ч�
 import 'dotenv/config';
 import { DataSource } from 'typeorm';
 
-const options = getTypeOrmConfig(__dirname);
+const options = getTypeOrmConfig();
 
-console.log('Resolved TypeORM Config', options);
+console.log('Resolved TypeORM Config', options)
 
-export const AppDataSource = new DataSource(options);
+export const AppDataSource = new DataSource(options)

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { RefferalLink } from "./entities/ReferralLink";
+import { RefferalLink } from "@backend/database";
 import { HubService } from "../hub/hub.service";
 import { NotFound } from "@backend/nestjs";
 import { boolean } from "zod";
@@ -45,6 +45,20 @@ export class ReferralService {
     }
 
     public async getRefferalNameByCode(code: string): Promise<{owner: string, hubFaceitId: string, hubImage: string, hubName: string, amountUsers: number} | null> {
+        const refferal = await this.refferalRepository.findOne({ where: { code } });
+        if (!refferal) {
+            return null;
+        }
+        const hub = await this.hubServices.getHubByReferralCode(code)
+        if(!hub) {
+          this.logger.debug(`Hub now found by provided code: ${code}`)
+          return null
+        }
+        return {owner: refferal.owner, hubFaceitId: hub.faceitId, hubImage: hub.hubImage, hubName: hub.hubName, amountUsers: hub.amountUsers};
+    }
+
+    
+    public async getRefferalDataByCode(code: string): Promise<{owner: string, hubFaceitId: string, hubImage: string, hubName: string, amountUsers: number} | null> {
         const refferal = await this.refferalRepository.findOne({ where: { code } });
         if (!refferal) {
             return null;
