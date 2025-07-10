@@ -8,8 +8,7 @@ export class ScarpingService {
     private readonly logger = new Logger(ScarpingService.name)
 
     public async getHtmlWithRetry(url: string, actionName: string, httpClient: AxiosInstance): Promise<{data: string, userId: string | undefined} | null> {
-            try {
-                const response = await executeApiActionWithRetry<string>(httpClient, { url: url, method: 'GET' }, actionName);
+                const response = await executeApiActionWithRetry<string>(httpClient, { url: url, method: 'GET' }, actionName, this.logger);
                 if (response && response.status >= 400) {
                     this.logger.error(`[${actionName}] Failed to get HTML, received status ${response.status} for URL: ${url}`);
                     return null;
@@ -24,9 +23,6 @@ export class ScarpingService {
                 }
                 return null
     
-            } catch (error) {
-                throw new Error(error)
-            }
     }
 
     loadHtml(html: string): cheerio.CheerioAPI {

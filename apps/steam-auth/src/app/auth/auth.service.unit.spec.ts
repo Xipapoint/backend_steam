@@ -1,6 +1,6 @@
 import { SteamAuthService } from './auth.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { User } from './entities/User';
+import { User } from '@backend/database';
 import { Test, TestingModule } from '@nestjs/testing';
 
 describe('SteamAuthService (unit)', () => {

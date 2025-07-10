@@ -6,7 +6,7 @@ import { SteamAuthController } from "./auth.controller";
 import { SteamAuthService } from "./auth.service";
 import {CookiePersistenceModule} from '@backend/cookies'
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { User } from "./entities/User";
+import { User } from "@backend/database";
 import { PuppeteerModule } from "../puppeteer/puppeteer.module";
 
 @Module({

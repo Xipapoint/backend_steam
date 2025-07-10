@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Hub } from "./entities/Hub";
+import { Hub } from "@backend/database";
 import { Repository } from "typeorm";
 
 @Injectable()

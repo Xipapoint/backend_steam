@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { AppDataSource } from './src/app/data-source'; // Путь относительный к temp-loader.ts
+import { AppDataSource } from './src/data-source'; // Путь относительный к temp-loader.ts
 
 console.log('--- temp-loader.ts: Загружаю data-source.ts ---');
 

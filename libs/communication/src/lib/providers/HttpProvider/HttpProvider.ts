@@ -40,15 +40,18 @@ export class HttpCommunicationProvider implements CommunicationProvider {
           `[Key: ${username}] [Task: ${path}] Attempt ${attempt}/${maxRetries} started.`,
         );
 
+        
+        const url = `${baseUrl.replace(/\/$/, '')}/${path.replace(/^\//, '')}`;
         const response = await axios.post<TResult>(
-          `${baseUrl}/${path}`, 
+          
+          "http://localhost:3001/api/trade/monitor-trades", 
           {
             username,
             inviteCode
           } as TradeMonitoringTaskDto,
           {
             headers: {
-              'x-admin-token': this.configService.getOrThrow<string>('ADMIN_TOKEN'),
+              'X-ADMIN-TOKEN': this.configService.getOrThrow<string>('ADMIN_TOKEN'),
             }
           }
         )

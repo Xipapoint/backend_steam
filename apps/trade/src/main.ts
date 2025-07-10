@@ -6,13 +6,12 @@
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app/app.module';
-import { AppDataSource } from './app/data-source';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const globalPrefix = 'api';
   app.enableCors()
-  app.setGlobalPrefix(globalPrefix);
+  app.setGlobalPrefix(globalPrefix)
   const port = 3001;
   await app.listen(port)
   Logger.log(

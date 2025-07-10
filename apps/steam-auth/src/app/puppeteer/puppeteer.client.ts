@@ -18,7 +18,8 @@ export class PuppeteerClient implements OnModuleInit {
                 args: [
                     '--disable-gpu',
                     '--disable-dev-shm-usage',
-                ]
+                ],
+                userDataDir: `./tmp/puppeteer_profile_${Date.now()}`
             }
             this.browser = await puppeteer.launch(BROWSER_CONFIG);
             this.logger.log("Browser initialized successfully.");
