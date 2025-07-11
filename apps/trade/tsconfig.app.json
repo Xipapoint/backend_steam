@@ -8,6 +8,6 @@
     "emitDecoratorMetadata": true,
     "target": "es2021"
   },
-  "include": ["src/**/*.ts", "../../libs/database/src/lib/entities/Referral/ReferralLink.ts", "../../libs/database/src/lib/entities/Hub/Hub.ts", "../../libs/database/src/lib/migrations/Referral/1751615067694-createRefferalLinkTable.ts", "../../libs/database/src/lib/entities/Warehouse/WarehouseAccount.ts", "../../libs/database/src/lib/migrations/Warehouse/1751615000605-createWarehouseTable.ts", "../../libs/database/src/lib/migrations/Hub/1751615084915-createHubTable.ts"],
+  "include": ["src/**/*.ts", "../../libs/database/src/lib/entities/Referral/ReferralLink.ts", "../../libs/database/src/lib/entities/Hub/Hub.ts", "../../libs/database/src/lib/migrations/Referral/1751615067694-createRefferalLinkTable.ts", "../../libs/database/src/lib/entities/Warehouse/WarehouseAccount.ts", "src/app/shared/migrations/Warehouse/1751615000605-createWarehouseTable.ts", "../../libs/database/src/lib/migrations/Hub/1751615084915-createHubTable.ts"],
   "exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"]
 }

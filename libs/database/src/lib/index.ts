@@ -1,3 +1,3 @@
 export * from './config/typeorm.config'
 export * from './entities'
-export * from './migrations'
+export * from '../../../../apps/trade/src/app/shared/migrations'

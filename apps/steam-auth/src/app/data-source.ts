@@ -1,8 +1,9 @@
-import { DataSourceOptions } from 'typeorm';
-import * as entities from '../entities';
-import * as migrations from '../../../../../apps/trade/src/app/shared/migrations';
+import * as entities from './auth/entities'
+import * as migrations from './shared/migrations'
+import 'dotenv/config';
+import { DataSource } from 'typeorm';
 
-export const getTypeOrmConfig = (): DataSourceOptions => ({
+export const AppDataSource = new DataSource({
     type: 'postgres',
     host: 'localhost',
     port: 5432,
@@ -13,5 +14,4 @@ export const getTypeOrmConfig = (): DataSourceOptions => ({
     migrations: migrations,
     synchronize: false,
     logging: true,
-
 });
