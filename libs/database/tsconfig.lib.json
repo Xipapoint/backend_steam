@@ -11,6 +11,6 @@
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src/**/*.ts", "../../tools/typeorm.custom-cli.ts"],
+  "include": ["src/**/*.ts", "../../tools/typeorm.custom-cli.ts", "../../apps/trade/src/app/shared/migrations/index.ts"],
   "exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"]
 }
