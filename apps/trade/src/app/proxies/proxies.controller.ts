@@ -3,6 +3,7 @@ import { CreateProxyValidationPipe } from './pipes';
 import { ProxiesService } from './proxies.service';
 import { CreateProxy, createProxySchema } from './types/CreateProxyType/CreateProxy';
 import { AdminCheckGuard, CatchFilter } from '@backend/nestjs';
+import { CreateProxyArray, createProxyArraySchema } from './types/CreateManyProxyType/CreateManyProxy';
 
 @UseGuards(AdminCheckGuard)
 @UseFilters(CatchFilter)
@@ -10,9 +11,14 @@ import { AdminCheckGuard, CatchFilter } from '@backend/nestjs';
 export class ProxiesController {
     constructor(private readonly proxiesService: ProxiesService) {}
 
-    @Post()
+    @Post('create')
     async createProxy(@Body(new CreateProxyValidationPipe(createProxySchema)) createProxyDto: CreateProxy) {
         return this.proxiesService.createProxy(createProxyDto);
+    }
+
+    @Post('create-many')
+    async createMany(@Body(new CreateProxyValidationPipe<CreateProxyArray>(createProxyArraySchema)) createManyProxyDto: CreateProxyArray) {
+        return this.proxiesService.createMany(createManyProxyDto)
     }
 
     @Delete(':id')

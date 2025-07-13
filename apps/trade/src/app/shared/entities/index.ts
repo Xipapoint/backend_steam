@@ -1,4 +1,3 @@
-export * from '../../../../../apps/steam-auth/src/app/auth/entities/User/User'
 export * from './Hub/Hub'
 export * from './Referral/ReferralLink'
 export * from './Warehouse/WarehouseAccount'

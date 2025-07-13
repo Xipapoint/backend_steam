@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common";
 import { HubService } from "./hub.service";
 import { HubController } from "./hub.controller";
-import { Hub } from "@backend/database";
+import { Hub } from "../shared/entities";
 import { TypeOrmModule } from "@nestjs/typeorm";
 
 @Module({

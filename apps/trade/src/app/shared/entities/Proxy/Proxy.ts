@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from "typeorm";
 
 @Entity()
 export class Proxy {
@@ -8,7 +8,7 @@ export class Proxy {
   @Column({
     type: 'varchar',
   })
-  ip: number;
+  ip: string;
 
   @Column({
     type: 'int',
@@ -20,4 +20,23 @@ export class Proxy {
     default: true
   })
   isActive: boolean
+
+  @Column({
+    type: "timestamp",
+    nullable: true,
+    default: null,
+  })
+  cooldown: Date | null
+  
+  @Column({
+    type: 'boolean',
+    default: false
+  })
+  isUsing: boolean
+
+  @CreateDateColumn()
+  createdAt: Date
+
+  @UpdateDateColumn()
+  updatedAt: Date
 }

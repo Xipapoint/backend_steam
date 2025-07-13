@@ -25,6 +25,7 @@
     "class-validator": "^0.14.2",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
+    "https-proxy-agent": "^7.0.6",
     "husky": "^9.1.7",
     "jest-mock-extended": "^4.0.0",
     "lint-staged": "^16.1.2",

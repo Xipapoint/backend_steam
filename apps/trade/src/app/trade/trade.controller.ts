@@ -12,7 +12,6 @@ export class TradeController {
     @UseFilters(CatchFilter)
     @Post('monitor-trades')
     async startMonitoring(@Body(new TradeTaskZodValidation(tradeTaskSchema)) data: TradeMonitoringTaskDto) {
-          console.log('🔥 TradeController: запрос получен:', data);
         this.tradeService.monitorTradesLifecycle(data);
     }
 } 

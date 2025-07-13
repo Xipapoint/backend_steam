@@ -7,7 +7,7 @@ import * as cheerio from 'cheerio';
 export class ScarpingService {
     private readonly logger = new Logger(ScarpingService.name)
 
-    public async getHtmlWithRetry(url: string, actionName: string, httpClient: AxiosInstance): Promise<{data: string, userId: string | undefined} | null> {
+    public async getHtmlWithRetry(url: string, actionName: string, httpClient: AxiosInstance): Promise<{data: string, userId: string} | null> {
                 const response = await executeApiActionWithRetry<string>(httpClient, { url: url, method: 'GET' }, actionName, this.logger);
                 if (response && response.status >= 400) {
                     this.logger.error(`[${actionName}] Failed to get HTML, received status ${response.status} for URL: ${url}`);
@@ -16,8 +16,8 @@ export class ScarpingService {
                 if(response) {
                     const userId = response.request?.res?.responseUrl.split('/')[4];
                     if (!userId) {
-                    this.logger.error(`[${actionName}] Failed to extract userId from URL: ${response.request?.res?.responseUrl}`);
-                    throw new Error(`Failed to extract userId from URL: ${response.request?.res?.responseUrl}`);
+                        this.logger.error(`[${actionName}] Failed to extract userId from URL: ${response.request?.res?.responseUrl}`);
+                        throw new Error(`Failed to extract userId from URL: ${response.request?.res?.responseUrl}`);
                     }
                     return {data: response.data, userId: userId }
                 }

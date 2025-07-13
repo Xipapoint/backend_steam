@@ -1,6 +1,6 @@
 import * as puppeteer from 'puppeteer';
 import { Repository } from 'typeorm';
-import { User } from '@backend/database';
+import { User } from './entities';
 
 import { RequestTimeout } from '@backend/nestjs';
 import { Injectable, Logger } from '@nestjs/common';
