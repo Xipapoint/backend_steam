@@ -74,7 +74,7 @@ export class FileCookiePersistenceService implements CookiePersistenceService {
         }
     }
     async save(username: string, jar: CookieJar): Promise<void> {
-try {
+        try {
             const relevantDomains = ['steamcommunity.com', 'store.steampowered.com'];
             const puppeteerCookiesOutput: puppeteer.Cookie[] = [];
             for (const domain of relevantDomains) {

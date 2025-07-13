@@ -1,10 +1,10 @@
+import { CookiePersistenceModule } from '@backend/cookies';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { getTypeOrmConfig } from '@backend/database';
-import { PuppeteerModule } from './puppeteer/puppeteer.module';
 import { AuthModule } from './auth/auth.module';
-import { CookiePersistenceModule } from '@backend/cookies'
+import { DBConfig } from './data-source';
+import { PuppeteerModule } from './puppeteer/puppeteer.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -13,7 +13,7 @@ import { CookiePersistenceModule } from '@backend/cookies'
     CookiePersistenceModule,
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => getTypeOrmConfig(),
+      useFactory: (configService: ConfigService) => DBConfig,
     }),
   ],
 })

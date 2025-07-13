@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { RefferalLink } from "@backend/database";
+import { RefferalLink } from "../shared/entities";
 import { HubService } from "../hub/hub.service";
 import { NotFound } from "@backend/nestjs";
 import { boolean } from "zod";

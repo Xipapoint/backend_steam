@@ -1,8 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { Proxy } from '@backend/database';
+import { IsNull, Repository } from "typeorm";
 import { CreateProxy } from './types/CreateProxyType/CreateProxy';
+import { CreateProxyArray } from "./types/CreateManyProxyType/CreateManyProxy";
+import { Proxy } from "../shared/entities";
+import { NotFound } from "@backend/nestjs";
 
 @Injectable()
 export class ProxiesService {
@@ -12,8 +14,11 @@ export class ProxiesService {
     ) {}
 
     async createProxy(data: CreateProxy): Promise<Proxy> {
-        const proxy = this.proxyRepository.create(data);
-        return this.proxyRepository.save(proxy);
+        return await this.proxyRepository.save(data);
+    }
+
+    async createMany(data: CreateProxyArray): Promise<Proxy[]> {
+        return await this.proxyRepository.save(data);
     }
 
     async deleteProxy(id: number): Promise<Proxy> {
@@ -30,5 +35,20 @@ export class ProxiesService {
     async setDisabledProxy(id: number) {
         await this.proxyRepository.update(id, { isActive: false });
         return this.proxyRepository.findOneByOrFail({ id });
+    }
+
+    async getRandomProxy(): Promise<Proxy | null> {
+        const proxies = await this.proxyRepository.find({ where: { isActive: true, cooldown: IsNull(), isUsing: false } });
+        await this.proxyRepository
+            .createQueryBuilder('proxy')
+            .update(Proxy)
+            .set({isUsing: false})
+            .set({cooldown: new Date(Date.now() + 20 * 60 * 1000)})
+            .where("isUsing = :isUsing", { isUsing: true })
+            .execute()
+        
+        if (proxies.length === 0) return null;
+        const randomIndex = Math.floor(Math.random() * proxies.length);
+        return proxies[randomIndex];
     }
 }
