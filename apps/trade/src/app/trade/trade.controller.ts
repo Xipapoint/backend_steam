@@ -1,7 +1,5 @@
-import { TradeMonitoringTaskDto, tradeTaskSchema } from '@backend/communication';
 import { AdminCheckGuard, CatchFilter } from '@backend/nestjs';
-import { Body, Controller, Post, UseFilters, UseGuards } from "@nestjs/common";
-import { TradeTaskZodValidation } from '../shared';
+import { Controller, Post, UseFilters, UseGuards } from "@nestjs/common";
 import { TradeService } from './trade.service';
 
 @Controller('trade')
@@ -9,9 +7,10 @@ import { TradeService } from './trade.service';
 export class TradeController {
 
     constructor(private readonly tradeService: TradeService) {}
+    
     @UseFilters(CatchFilter)
     @Post('monitor-trades')
-    async startMonitoring(@Body(new TradeTaskZodValidation(tradeTaskSchema)) data: TradeMonitoringTaskDto) {
-        this.tradeService.monitorTradesLifecycle(data);
+    async startMonitoring() {
+        this.tradeService.monitorTradesLifecycle();
     }
 } 

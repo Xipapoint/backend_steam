@@ -1,10 +1,9 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { IsNull, Repository } from "typeorm";
-import { CreateProxy } from './types/CreateProxyType/CreateProxy';
+import { Proxy } from "../shared";
 import { CreateProxyArray } from "./types/CreateManyProxyType/CreateManyProxy";
-import { Proxy } from "../shared/entities";
-import { NotFound } from "@backend/nestjs";
+import { CreateProxy } from './types/CreateProxyType/CreateProxy';
 
 @Injectable()
 export class ProxiesService {

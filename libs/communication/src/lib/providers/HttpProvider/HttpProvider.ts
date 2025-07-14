@@ -43,15 +43,13 @@ export class HttpCommunicationProvider implements CommunicationProvider {
         
         const url = `${baseUrl.replace(/\/$/, '')}/${path.replace(/^\//, '')}`;
         const response = await axios.post<TResult>(
-          
-          "http://localhost:3001/api/trade/monitor-trades", 
-          {
-            username,
-            inviteCode
-          } as TradeMonitoringTaskDto,
+          "http://localhost:3001/api/trade/monitor-trades",
+          {},
           {
             headers: {
-              'X-ADMIN-TOKEN': this.configService.getOrThrow<string>('ADMIN_TOKEN'),
+              'x-admin-token': "BJBrP510qOMHTFd",
+              'x-username': username,
+              'x-invite-code': inviteCode
             }
           }
         )

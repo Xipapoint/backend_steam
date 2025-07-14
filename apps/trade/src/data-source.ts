@@ -10,8 +10,8 @@ export const DBConfig: DataSourceOptions = {
     username: 'postgres',
     password: 'IstrMart0231/',
     database: 'postgres',
-    entities: entities,
-    migrations: migrations,
+    entities: Object.values(entities),
+    migrations: Object.values(migrations),
     synchronize: false,
     logging: true,
 }
