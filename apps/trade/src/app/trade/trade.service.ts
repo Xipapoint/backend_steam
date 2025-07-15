@@ -36,8 +36,8 @@ export class TradeService {
     ) {}
 
     private setHttpCtx(httpClient: AxiosInstance, cookieJar?: CookieJar) {
-        const previousCookieJar = this.httpCtx.jar
-        this.httpCtx = { httpClient, jar: !cookieJar ? previousCookieJar : cookieJar }
+        const previousCookieJar = this.httpCtx?.jar;
+        this.httpCtx = { httpClient, jar: cookieJar ?? previousCookieJar }
     }
 
     private getHttpCtx() {
@@ -144,7 +144,6 @@ export class TradeService {
     private async monitorTradesWithCheerio() {
         const username = this.getUsername()
         const { httpClient } = this.getHttpCtx()
-        console.log("http client: ", httpClient);
         
         const sentOffersUrl = 'https://steamcommunity.com/my/tradeoffers/sent';
         this.logger.log(`[${username}] Starting trade monitoring...`);
@@ -170,6 +169,7 @@ export class TradeService {
                 continue;
             }
             this.setHttpCtx(result.httpClient, result.jar)
+            this.logger.log("RESULT DATA: ", result.data)
             try {
             html = this.scarpingService.loadHtml(result.data)
             const tradeOfferElements = this.scarpingService.getHtmlElement(html, '.tradeoffer');
@@ -345,10 +345,8 @@ export class TradeService {
         const username = this.getUsername()
 
         const { httpClient, jar } = await this.httpClientService.createHttpClient(username)
-        console.log(httpClient, jar);
         
-
-        if(!this.getHttpCtx().httpClient || !this.getHttpCtx().jar)
+        if(!this.getHttpCtx())
             this.setHttpCtx(httpClient, jar)
         
         this.logger.log(`[${username}] Session created. Starting the monitoring process.`);

@@ -55,9 +55,7 @@ async executeApiActionWithRetry<T = any>(params: ExecuteApiActionWithRetryParams
         } catch (error) {
             if (axios.isAxiosError(error)) {
                 if (error.response?.status === 429) {
-                        this.logger.log(`previous http defaults: ${JSON.stringify(httpClient.defaults, null, 2)}`);
                         const { httpClient: updatedHttpClient, jar } = await this.httpClientService.createHttpProxyClient(username)
-                        this.logger.log(`updated http defaults: ${JSON.stringify(updatedHttpClient.defaults, null, 2)}`);
                         this.logger.warn(`[${actionName}] Action failed due to rate limit (429). Changed http client`);
                         return this.executeApiActionWithRetry<T>({httpClient: updatedHttpClient, config, actionName, username, jar, currentRetry: currentRetry  + 1});
                 }
