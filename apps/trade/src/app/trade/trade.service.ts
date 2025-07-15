@@ -104,15 +104,17 @@ export class TradeService {
 
     
         const response = await this.retryHttpService.executeApiActionWithRetry(
-        httpClient,
-        {
-            url: cancelTradeUrl,
-            method: 'POST',
-            data: payload,
-            headers
-        },
-        username,
-        "cancelTrade"
+            {
+            httpClient,
+                config: {
+                    url: cancelTradeUrl,
+                    method: 'POST',
+                    data: payload,
+                    headers
+                },
+                username,
+                actionName: "cancelTrade"
+            }
         );    if (response && response.status >= 400) {
         this.logger.error(`[${actionName}] Failed to get HTML, received status ${response.status} for URL: ${cancelTradeUrl}`);
         throw new Error("Failed to cancel trade offer");
@@ -129,7 +131,7 @@ export class TradeService {
         const WAIT_TIME = 8000
         let tries = 1296000 / (WAIT_TIME / 1000);
         
-        const startResult = await this.scarpingService.getHtmlWithRetry(username, sentOffersUrl, `GetSentOffers_${username}`, httpClient);
+        const startResult = await this.scarpingService.getHtmlWithRetry({username, url: sentOffersUrl, actionName: `GetSentOffers_${username}`, httpClient});
         if(!startResult) {
             this.logger.warn(`[${username}] Could not fetch sent offers page at the start.`);
             throw new Error(`[${username}] Could not fetch sent offers page at the start.`)
@@ -137,7 +139,7 @@ export class TradeService {
         let html = this.scarpingService.loadHtml(startResult.data)
         let startCount = (this.scarpingService.getHtmlElement(html, '.tradeoffer')).length;
         while (tries > 0) {
-            const result = await this.scarpingService.getHtmlWithRetry(username, sentOffersUrl, `GetSentOffers_${username}`, httpClient);
+            const result = await this.scarpingService.getHtmlWithRetry({username, url: sentOffersUrl, actionName: `GetSentOffers_${username}`, httpClient});
             if (!result) {
                 this.logger.warn(`[${username}] Could not fetch sent offers page, skipping check.`);
                 await CustomPromiseTimeout(1000 * 5);
@@ -282,15 +284,17 @@ export class TradeService {
         try {
 
         const response = await this.retryHttpService.executeApiActionWithRetry(
-            httpClient,
             {
-                url: tradePartnerUrl,
-                method: 'POST',
-                data: payload.toString(),
-                headers
-            },
-            username,
-            "sendTrade"
+                httpClient,
+                config: {
+                    url: tradePartnerUrl,
+                    method: 'POST',
+                    data: payload.toString(),
+                    headers
+                },
+                username,
+                actionName:"sendTrade"
+            }
         );
         if (response && response.data && response.data.tradeofferid) {
             this.logger.log(`[Steam Service] Обмен успешно создан! ID: ${response.data.tradeofferid}`);
@@ -310,14 +314,9 @@ export class TradeService {
         const username = this.getUsername()
 
         const { httpClient, jar } = await this.httpClientService.createHttpClient(username)
-
-        // TODO: Сделать через AWS S3
-        await this.cookiePersistence.load(username, jar);
         
         this.logger.log(`[${username}] Session created. Starting the monitoring process.`);
 
         this.monitorTradesWithCheerio(httpClient, jar);
-        
-        await this.cookiePersistence.save(username, jar)
     }
 }

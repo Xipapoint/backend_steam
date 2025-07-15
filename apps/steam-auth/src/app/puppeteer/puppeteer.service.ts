@@ -67,14 +67,14 @@ export class PuppeteerService {
                 }
                 if (loadCookiesFn) {
                     this.logger.log(`[User: ${username}] Loading cookies...`);
-                    await context.setCookie(... (await this.cookiePersistence.loadCookiesFromFile(username)))
+                    await context.setCookie(... (await this.cookiePersistence.loadCookies(username)))
                 }
                 const result = await taskFn(page);
 
                 if (saveCookiesFn && result) {
                     this.logger.log(`[User: ${username}] Saving cookies...`);
                     console.log("cookies: ", context.cookies());
-                    await this.cookiePersistence.saveCookiesToFile(username, await context.cookies());
+                    await this.cookiePersistence.saveCookies(username, await context.cookies());
                 }
                 this.logger.log(`[User: ${username}] [Task: ${taskName}] successful.`);
                 return result;

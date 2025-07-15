@@ -22,7 +22,7 @@ export class HttpClientService {
     const proxyUrl = `http://${proxyAuth}${proxy.ip}:${proxy.port}`;
     const agent = new HttpsProxyAgent(proxyUrl);
     const jar = new CookieJar();
-    await this.cookiePersistence.load(username, jar);
+    await this.cookiePersistence.loadToJar(username, jar);
     const cookies = await jar.getCookieString("https://steamcommunity.com")
     const httpClient = axios.create({
       httpAgent: agent,
@@ -36,7 +36,7 @@ export class HttpClientService {
 
   async createHttpClient(username: string) {
     const jar = new CookieJar();
-    await this.cookiePersistence.load(username, jar);
+    await this.cookiePersistence.loadToJar(username, jar);
     const httpClient = wrapper(axios.create({ jar }));
     return { httpClient, jar };
   }

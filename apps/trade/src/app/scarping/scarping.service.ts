@@ -3,13 +3,29 @@ import { AxiosInstance } from 'axios';
 import * as cheerio from 'cheerio';
 import { RetryHttpService } from '../http/retry-http.service';
 
+interface GetHtmlWithRetryProps {
+    username: string;
+    url: string;
+    actionName: string;
+    httpClient: AxiosInstance;
+}
 @Injectable()
 export class ScarpingService {
     private readonly logger = new Logger(ScarpingService.name)
     constructor(private readonly retryHttpService: RetryHttpService) {}
 
-    public async getHtmlWithRetry(username: string, url: string, actionName: string, httpClient: AxiosInstance): Promise<{data: string, userId: string} | null> {
-                const response = await this.retryHttpService.executeApiActionWithRetry<string>(httpClient, { url: url, method: 'GET' }, username, actionName);
+    public async getHtmlWithRetry(
+        props: GetHtmlWithRetryProps
+    ): Promise<{data: string, userId: string} | null> {
+        const { username, url, actionName, httpClient } = props
+                const response = await this.retryHttpService.executeApiActionWithRetry<string>(
+                    {
+                        httpClient, 
+                        config: { url: url, method: 'GET' }, 
+                        username, 
+                        actionName
+                    }
+                );
                 if (response && response.status >= 400) {
                     this.logger.error(`[${actionName}] Failed to get HTML, received status ${response.status} for URL: ${url}`);
                     return null;

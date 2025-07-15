@@ -1,10 +1,9 @@
 
 import { Injectable, Logger } from "@nestjs/common";
-import { CookiePersistenceService } from "./interface";
 import * as puppeteer from 'puppeteer';
 import { Cookie, CookieJar, CreateCookieOptions } from "tough-cookie";
-import { promises } from 'fs';
-import path from "path";
+import { S3ClientService } from "../aws/s3.client";
+import { CookiePersistenceService } from "./interface";
 
 
 
@@ -12,35 +11,37 @@ import path from "path";
 export class FileCookiePersistenceService implements CookiePersistenceService {
     private readonly logger = new Logger(FileCookiePersistenceService.name);
 
-        async saveCookiesToFile(username: string, cookies: puppeteer.Cookie[]
-        ): Promise<void> {
-            const cookiePath = path.resolve(__dirname, "..", 'cookies', `${username}.json`)
-            
-            await promises.mkdir(path.dirname(cookiePath), { recursive: true });
-            await promises.writeFile(cookiePath, JSON.stringify(cookies, null, 2));
-            this.logger.log(`Cookies saved for user ${username}`);
-
-        }
-    
-        async loadCookiesFromFile(username: string): Promise<puppeteer.Cookie[]> {
-            const cookiePath = path.resolve(__dirname, "..", 'cookies', `${username}.json`);
-            try {
-                const cookiesJson = await promises.readFile(cookiePath, 'utf-8');
-                this.logger.log(`Cookies loaded for user ${username}`);
-                return JSON.parse(cookiesJson);
-            } catch (error: any) {
-                if (error.code === 'ENOENT') {
-                    this.logger.warn(`Cookie file not found for user ${username}. Starting fresh session.`);
-                    return [];
-                }
-                this.logger.error(`Error loading cookies for user ${username}:`, error);
-                return []
-            }
-        }
-
-    async load(username: string, jar: CookieJar): Promise<void> {
+constructor(private readonly s3Storage: S3ClientService) {}
+    async loadCookies(username: string): Promise<puppeteer.Cookie[]> {
+        this.logger.log(`Loading cookies for user ${username} from S3.`);
         try {
-            const puppeteerCookies: puppeteer.Cookie[] = await this.loadCookiesFromFile(username);
+            const cookiesContent  = await this.s3Storage.getObject(username);
+
+            if (!cookiesContent) {
+                this.logger.warn(`Cookie file not found for user ${username} in S3. Starting fresh session.`);
+                return [];
+            }
+
+            const cookiesObject = JSON.parse(cookiesContent);
+            console.log(`Cookies: ${cookiesObject}`);
+            
+
+            return Array.isArray(cookiesObject) ? cookiesObject : [];
+        } catch (error: any) {
+            this.logger.error(`Error loading cookies for user ${username} from S3:`, error);
+            return [];
+        }
+    }
+
+    async saveCookies(username: string, cookies: puppeteer.Cookie[]): Promise<void> {
+        this.logger.log(`Saving ${cookies.length} cookies for user ${username} to S3.`);
+        await this.s3Storage.putObject(username, JSON.stringify(cookies), 'json');
+        this.logger.log(`Cookies saved for user ${username} in S3.`);
+    }
+
+    async loadToJar(username: string, jar: CookieJar): Promise<void> {
+        try {
+            const puppeteerCookies: puppeteer.Cookie[] = await this.loadCookies(username);
 
             if (puppeteerCookies && puppeteerCookies.length > 0) {
                 let loadedCount = 0;
@@ -73,7 +74,7 @@ export class FileCookiePersistenceService implements CookiePersistenceService {
             this.logger.warn(`[User: ${username}] Error during cookie loading process: ${error.message}. Starting fresh session might occur.`);
         }
     }
-    async save(username: string, jar: CookieJar): Promise<void> {
+    async saveFromJar(username: string, jar: CookieJar): Promise<void> {
         try {
             const relevantDomains = ['steamcommunity.com', 'store.steampowered.com'];
             const puppeteerCookiesOutput: puppeteer.Cookie[] = [];
@@ -97,7 +98,7 @@ export class FileCookiePersistenceService implements CookiePersistenceService {
                 }
             }
             if (puppeteerCookiesOutput.length > 0) {
-                await this.saveCookiesToFile(username, puppeteerCookiesOutput);
+                await this.saveCookies(username, puppeteerCookiesOutput);
             } else {
                 this.logger.log(`[User: ${username}] No relevant cookies found in jar to save.`);
             }

@@ -5,7 +5,6 @@ import { Body, Controller, Inject, Injectable, Post, Res, UseFilters } from '@ne
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
 import { z, ZodType, ZodTypeDef } from 'zod';
-import { LoginAcceptionRequest } from '../shared/dto/login-acception/LoginAcceptionRequest';
 import { LoginResult } from '../shared/dto/login-result/LoginResult';
 import { LoginSteamGuardRequest } from '../shared/dto/login-steamguard/LoginSteamGuardRequest';
 import { LoginRequest } from '../shared/dto/login/LoginRequestDTO';
@@ -87,8 +86,7 @@ export class SteamAuthController {
                     controllerCallback: this.steamAuthService.loginWithAcception.bind(this.steamAuthService),
                     parsedBody: parsedData,
                     taskName: TASK_NAMES.loginWithAcception,
-                    loadCookiesFn: this.cookiePersistence.loadCookiesFromFile.bind(this),
-                    saveCookiesFn: this.cookiePersistence.saveCookiesToFile.bind(this),
+                    saveCookiesFn: this.cookiePersistence.saveCookies.bind(this),
                 }
             )
             res.send({success})
@@ -114,7 +112,7 @@ export class SteamAuthController {
                     controllerCallback: this.steamAuthService.login.bind(this.steamAuthService),
                     parsedBody: parsedData,
                     taskName: TASK_NAMES.typeSteamGuardCode,
-                    saveCookiesFn: this.cookiePersistence.saveCookiesToFile.bind(this),
+                    saveCookiesFn: this.cookiePersistence.saveCookies.bind(this),
                     options: { closePage: parsedData.closePage }
                 }
             )

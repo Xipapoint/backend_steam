@@ -11,6 +11,6 @@ export class TradeController {
     @UseFilters(CatchFilter)
     @Post('monitor-trades')
     async startMonitoring() {
-        this.tradeService.monitorTradesLifecycle();
+        await this.tradeService.monitorTradesLifecycle();
     }
 } 
