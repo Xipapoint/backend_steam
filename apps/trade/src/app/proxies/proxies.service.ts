@@ -45,9 +45,11 @@ export class ProxiesService {
             .set({cooldown: new Date(Date.now() + 20 * 60 * 1000)})
             .where("isUsing = :isUsing", { isUsing: true })
             .execute()
-        
         if (proxies.length === 0) return null;
         const randomIndex = Math.floor(Math.random() * proxies.length);
-        return proxies[randomIndex];
+        const selectedProxy = proxies[randomIndex];
+        selectedProxy.isUsing = true
+        await this.proxyRepository.save(selectedProxy)
+        return selectedProxy
     }
 }
