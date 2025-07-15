@@ -1,6 +1,13 @@
 import { Injectable, Logger } from "@nestjs/common";
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from "axios";
 import { HttpClientService } from "./http-client.service";
+interface ExecuteApiActionWithRetryParams {
+    httpClient: AxiosInstance;
+    config: AxiosRequestConfig;
+    username: string;
+    actionName: string;
+    currentRetry?: number;
+}
 
 @Injectable()
 export class RetryHttpService {
@@ -10,13 +17,8 @@ export class RetryHttpService {
     private readonly httpClientService: HttpClientService,
   ) {}
 
-async executeApiActionWithRetry<T = any>(
-        httpClient: AxiosInstance,
-        config: AxiosRequestConfig,
-        username: string,
-        actionName: string,
-        currentRetry = 0
-    ): Promise<AxiosResponse<T> | void> {
+async executeApiActionWithRetry<T = any>(params: ExecuteApiActionWithRetryParams): Promise<AxiosResponse<T> | void> {
+    const { httpClient, config, username, actionName, currentRetry } = params
         this.logger.debug(`[${actionName}] Attempting API action (Retry ${currentRetry}). URL: ${config.method || 'GET'} ${config.url} and name: ${actionName}`);
         
         try {
@@ -53,7 +55,7 @@ async executeApiActionWithRetry<T = any>(
                 if (error.response?.status === 429) {
                         const { httpClient } = await this.httpClientService.createHttpProxyClient(username)
                         this.logger.warn(`[${actionName}] Action failed due to rate limit (429). Changed http client`);
-                        return this.executeApiActionWithRetry<T>(httpClient, config, actionName, username, currentRetry + 1);
+                        return this.executeApiActionWithRetry<T>({httpClient, config, actionName, username, currentRetry: ((currentRetry || 0)  + 1)});
                 }
             } else {
                     this.logger.error(`[${actionName}] Action failed with non-429 Axios error: ${error.message}. Status: ${error.response?.status}. URL: ${config.url}`);

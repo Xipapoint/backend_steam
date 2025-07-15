@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosError } from "axios";
-import { CommunicationProvider, StatefulRequestOptions, TradeMonitoringTaskDto } from "../../interfaces";
+import { CommunicationProvider, StatefulRequestOptions } from "../../interfaces";
 
 @Injectable()
 export class HttpCommunicationProvider implements CommunicationProvider {
