@@ -7,7 +7,7 @@ import { LoginWithCodeRequest, steamGuardSchema } from '../shared/dto/login-stea
 import { AuthZodValidationPipe } from '../shared/pipes';
 import { AbstractLogin } from './abstract/abstract.login';
 import { SteamAuthService } from './auth.service';
-import { LoginEventService } from '../login-event/LoginEventService';
+import { LoginEventService } from './login-event/LoginEventService';
 import * as puppeteer from 'puppeteer';
 import { LoginResult } from '../shared/dto/login-result/LoginResult';
 

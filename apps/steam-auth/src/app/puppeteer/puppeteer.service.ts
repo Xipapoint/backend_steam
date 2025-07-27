@@ -95,20 +95,17 @@ export class PuppeteerService {
                 }
             }
     }
-    async getBrowserContext(username: string): Promise<puppeteer.BrowserContext> {
-        if (!this.browserClient) {
-            await this.browserClient.getBrowser();
-        }
+    async getBrowserContext(username: string): Promise<puppeteer.BrowserContext | null>  {
+        await this.browserClient.getBrowser()
         return this.sessions.get(username) || null;
     }
 
     async createContext(username: string): Promise<puppeteer.BrowserContext> {
-        if (!this.browserClient) {
-            await this.browserClient.getBrowser();
-        }
-        if (this.sessions.has(username)) {
+        await this.browserClient.getBrowser()
+        const existedContext = this.sessions.get(username);
+        if (existedContext) {
             this.logger.warn(`Context for user ${username} already exists. Reusing existing context.`);
-            return this.sessions.get(username);
+            return existedContext;
         }
         const context = await this.browserClient.getNewContext();
         this.sessions.set(username, context);
