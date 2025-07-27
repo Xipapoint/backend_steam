@@ -8,6 +8,7 @@ import {CookiePersistenceModule} from '@backend/cookies'
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { User } from "./entities";
 import { PuppeteerModule } from "../puppeteer/puppeteer.module";
+import { LoginEventService } from './login-event/LoginEventService';
 
 @Module({
     imports: [ 
@@ -19,7 +20,8 @@ import { PuppeteerModule } from "../puppeteer/puppeteer.module";
     ],
     providers: [
         SteamAuthService,
-        AbstractLogin
+        AbstractLogin,
+        LoginEventService
     ],
     controllers: [SteamAuthController],
 })

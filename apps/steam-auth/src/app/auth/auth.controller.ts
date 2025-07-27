@@ -1,147 +1,110 @@
-import { COMMUNICATION_PROVIDER_TOKEN, CommunicationProvider } from '@backend/communication';
 import { COOKIE_PERSISTENCE_SERVICE, CookiePersistenceService } from '@backend/cookies';
-import { CatchFilter, ZodValidationPipe } from '@backend/nestjs';
-import { Body, Controller, Inject, Injectable, Post, Res, UseFilters } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { CatchFilter } from '@backend/nestjs';
+import { Body, Controller, Inject, Post, Res, UseFilters } from '@nestjs/common';
 import { Response } from 'express';
-import { z, ZodType, ZodTypeDef } from 'zod';
-import { LoginResult } from '../shared/dto/login-result/LoginResult';
-import { LoginSteamGuardRequest } from '../shared/dto/login-steamguard/LoginSteamGuardRequest';
-import { LoginRequest } from '../shared/dto/login/LoginRequestDTO';
+import { baseLoginSchema, LoginRequest } from '../shared/dto/BaseLoginRequest';
+import { LoginWithCodeRequest, steamGuardSchema } from '../shared/dto/login-steamguard/LoginSteamGuardRequest';
 import { AuthZodValidationPipe } from '../shared/pipes';
 import { AbstractLogin } from './abstract/abstract.login';
 import { SteamAuthService } from './auth.service';
+import { LoginEventService } from '../login-event/LoginEventService';
+import * as puppeteer from 'puppeteer';
+import { LoginResult } from '../shared/dto/login-result/LoginResult';
 
 enum TASK_NAMES {
-    login = "login",
-    loginWithAcception = 'loginWithAcception',
-    loginWithCookies = "loginWithCookies",
-    typeSteamGuardCode = 'typeSteamGuardCode',
-    monitorTrades = "monitorTrades"
+  login = 'login',
+  loginWithAcception = 'loginWithAcception',
+  loginWithCookies = 'loginWithCookies',
+  typeSteamGuardCode = 'typeSteamGuardCode',
 }
-
-const loginWithSteamGuardCodeSchema = z.object({
-  steamGuardCode: z.string().min(1, 'No steam guard code provided.'),
-  username: z.string().min(1, 'No username provided.'),
-  password: z.string().min(1, 'No password provided.'),
-  inviteCode: z.string().min(1, 'No invite codes provided.'),
-  closePage: z.boolean(),
-}).strict() as ZodType<LoginSteamGuardRequest, ZodTypeDef, LoginSteamGuardRequest>;
-
-const loginSchema = z
-  .object({
-    username: z.string().min(1, "Username is required"),
-    password: z.string().min(1, "Password is required"),
-    inviteCode: z.string().min(1, "Invite code is required"),
-  })
-.strict() as ZodType<LoginRequest, ZodTypeDef, LoginRequest>;
 
 @Controller('auth')
-@Injectable()
 export class SteamAuthController {
+  constructor(
+    private readonly steamAuthService: SteamAuthService,
+    private readonly abstractLogin: AbstractLogin,
+    private readonly loginEventService: LoginEventService,
+    @Inject(COOKIE_PERSISTENCE_SERVICE)
+    private readonly cookiePersistence: CookiePersistenceService
+  ) {}
 
-    constructor(
-        private readonly steamAuthService: SteamAuthService, 
-        private readonly abstractLogin: AbstractLogin,
-        @Inject(COOKIE_PERSISTENCE_SERVICE)
-        private readonly cookiePersistence: CookiePersistenceService,
-        @Inject(COMMUNICATION_PROVIDER_TOKEN)
-        private readonly httpCommunicationProvider: CommunicationProvider,
-        private readonly configService: ConfigService
-    ) {}
-
-    
-    @Post('login')
-    @UseFilters(CatchFilter)
-    async login(
-        @Body(new AuthZodValidationPipe(loginSchema)) parsedData: LoginRequest,
-        @Res() res: Response,
-    ) {
-        console.log(parsedData);
-        
-            const success = await this.abstractLogin.execute<LoginRequest, LoginResult>(
-                {
-                    controllerCallback: this.steamAuthService.login.bind(this.steamAuthService),
-                    parsedBody: parsedData,
-                    taskName: TASK_NAMES.login,
-                    options: { closePage: true }
-                }
-            )
-            if(typeof success === 'boolean') 
-                res.send({success}) 
-            else
-                res.send(success)
+  private async doLogin<T extends LoginRequest>(
+    dto: T,
+    taskName: TASK_NAMES,
+    controllerCallback: (page: puppeteer.Page, body: T, options?) => Promise<any>,
+    saveCookies: boolean,
+    options?: { closePage?: boolean },
+  ) {
+    const result = await this.abstractLogin.execute<T, LoginResult>(
+      {
+        controllerCallback,
+        parsedBody: dto,
+        taskName,
+        loadCookiesFn: saveCookies ? this.cookiePersistence.loadCookies.bind(this.cookiePersistence) : undefined,
+        saveCookiesFn: saveCookies ? this.cookiePersistence.saveCookies.bind(this.cookiePersistence) : undefined,
+        options,
+      }
+    );
+    if (result) {
+      this.loginEventService.publishLoginEvent((dto).username, (dto).inviteCode);
     }
+    return result;
+  }
 
-    @Post('login-acception')
-    @UseFilters(CatchFilter)
-    public async loginWithAcception(
-        @Body(new ZodValidationPipe(loginSchema)) parsedData: LoginRequest,
-        @Res() res: Response,
-    ) {
-        console.log(parsedData);
-        
-            const success = await this.abstractLogin.execute<LoginRequest, LoginResult>(
-                {
-                    controllerCallback: this.steamAuthService.loginWithAcception.bind(this.steamAuthService),
-                    parsedBody: parsedData,
-                    taskName: TASK_NAMES.loginWithAcception,
-                    saveCookiesFn: this.cookiePersistence.saveCookies.bind(this),
-                }
-            )
-            res.send({success})
-            if(success) {
-                this.httpCommunicationProvider.sendWithState({
-                    baseUrl: this.configService.getOrThrow<string>('TRADE_SERVICE_URL'),
-                    path: '/trade/monitor-trades',
-                    username: parsedData.username,
-                    inviteCode: parsedData.inviteCode,
-                })
-            }
-    }
+  @Post('login')
+  @UseFilters(CatchFilter)
+  async login(
+    @Body(new AuthZodValidationPipe(baseLoginSchema)) dto: LoginRequest,
+    @Res() res: Response
+  ) {
+    const success = await this.doLogin(
+      dto,
+      TASK_NAMES.login,
+      this.steamAuthService.login.bind(this.steamAuthService),
+      false,
+      { closePage: true },
+    );
+    return res.send({ success });
+  }
 
-    
-    @Post('login-with-code')
-    @UseFilters(CatchFilter)
-    public async loginWithSteamGuardCode(
-        @Body(new AuthZodValidationPipe(loginWithSteamGuardCodeSchema)) parsedData: LoginSteamGuardRequest,
-        @Res() res: Response,
-    ): Promise<void> {
-            const success = await this.abstractLogin.execute<LoginSteamGuardRequest, LoginResult>(
-                {
-                    controllerCallback: this.steamAuthService.login.bind(this.steamAuthService),
-                    parsedBody: parsedData,
-                    taskName: TASK_NAMES.typeSteamGuardCode,
-                    saveCookiesFn: this.cookiePersistence.saveCookies.bind(this),
-                    options: { closePage: parsedData.closePage }
-                }
-            )
-            if(success) {
-                this.httpCommunicationProvider.sendWithState({
-                    baseUrl: this.configService.getOrThrow<string>('TRADE_SERVICE_URL'),
-                    path: '/trade/monitor-trades',
-                    username: parsedData.username,
-                    inviteCode: parsedData.inviteCode,
-                })
-            }
+  @Post('login-acception')
+  @UseFilters(CatchFilter)
+  async loginWithAcception(
+    @Body(new AuthZodValidationPipe(baseLoginSchema)) dto: LoginRequest,
+    @Res() res: Response
+  ) {
+    const success = await this.doLogin(
+      dto,
+      TASK_NAMES.loginWithAcception,
+      this.steamAuthService.loginWithAcception.bind(this.steamAuthService),
+      true
+    );
+    return res.send({ success });
+  }
 
-            res.send({ success });
-            return;
-    }
+  @Post('login-with-code')
+  @UseFilters(CatchFilter)
+  async loginWithSteamGuardCode(
+    @Body(new AuthZodValidationPipe(steamGuardSchema)) dto: LoginWithCodeRequest,
+    @Res() res: Response
+  ) {
+    const success = await this.doLogin(
+      dto,
+      TASK_NAMES.typeSteamGuardCode,
+      this.steamAuthService.login.bind(this.steamAuthService),
+      true,
+      { closePage: dto.closePage },
+    );
+    return res.send({ success });
+  }
 
-    @Post('login-cookies')
-    @UseFilters(CatchFilter)
-    public async loginUserWithCookies(
-        @Body(new AuthZodValidationPipe(loginSchema)) parsedData: LoginSteamGuardRequest,
-        res: Response,
-    ): Promise<void> {
-            this.httpCommunicationProvider.sendWithState({
-                baseUrl: this.configService.getOrThrow<string>('TRADE_SERVICE_URL'),
-                path: '/trade/monitor-trades',
-                username: parsedData.username,
-                inviteCode: parsedData.inviteCode,
-            })
-            res.send({ success: true });
-    }
+  @Post('login-cookies')
+  @UseFilters(CatchFilter)
+  async loginWithCookies(
+    @Body(new AuthZodValidationPipe(baseLoginSchema)) dto: LoginRequest,
+    @Res() res: Response
+  ) {
+    this.loginEventService.publishLoginEvent(dto.username, dto.inviteCode);
+    return res.send({ success: true });
+  }
 }
-
