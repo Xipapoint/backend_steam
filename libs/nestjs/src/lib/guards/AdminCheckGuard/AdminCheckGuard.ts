@@ -3,7 +3,7 @@ import { Observable } from 'rxjs';
 import { Request } from 'express';
 
 const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%_-/*';
-const regex = new RegExp(`^[${characters.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}]{16}$`);
+const regex = new RegExp(`^[${characters.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}]{15}$`);
 
 @Injectable()
 export class AdminCheckGuard implements CanActivate {
@@ -21,7 +21,8 @@ export class AdminCheckGuard implements CanActivate {
       throw new ForbiddenException('Invalid access code format');
     }
 
-    if (!code.includes('BJB%r')) {
+    // TODO: CHANGE TO CONFIG SERVICE
+    if (code !== "BJBrP510qOMHTFd") {
       throw new ForbiddenException('Invalid access code');
     }
 

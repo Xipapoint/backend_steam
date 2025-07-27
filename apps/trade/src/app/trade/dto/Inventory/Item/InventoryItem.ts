@@ -1,4 +1,4 @@
-interface InventoryItem {
+export interface InventoryItem {
   appid: number;
   contextid: string;
   amount: string;

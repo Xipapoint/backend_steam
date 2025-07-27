@@ -7,9 +7,9 @@ import { AdminCheckGuard } from "@backend/nestjs";
 @UseGuards(AdminCheckGuard)
 @Injectable()
 export class PuppeteerController {
+    private readonly logger = new Logger(PuppeteerController.name)
     constructor(
         private readonly puppeteerService: PuppeteerService,
-        private readonly logger: Logger
     ) {}
 
     @Post('/close-page-by-user')

@@ -39,6 +39,20 @@
       "options": {
         "passWithNoTests": true
       }
+    },
+    "typeorm-generate-migration": {
+      "command": "ts-node -P ./tsconfig.app.json -r tsconfig-paths/register ../../tools/typeorm.custom-cli.ts migration:generate -d ./src/data-source.ts ./src/app/shared/migrations/{args.module}/{args.name}",
+      "options": {
+        "cwd": "{projectRoot}"
+      },
+      "cache": false
+    },
+    "typeorm-run-migration": {
+      "command": "ts-node -P ./tsconfig.app.json -r tsconfig-paths/register ../../tools/typeorm.custom-cli.ts migration:run -d ./src/data-source.ts",
+      "options": {
+        "cwd": "{projectRoot}"
+      },
+      "cache": false
     }
   }
 }

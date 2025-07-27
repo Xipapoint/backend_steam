@@ -1,50 +1,73 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { executeApiActionWithRetry } from '../shared';
 import { AxiosInstance } from 'axios';
 import * as cheerio from 'cheerio';
+import { RetryHttpService } from '../http/retry-http.service';
+import { CookieJar } from 'tough-cookie';
 
+interface GetHtmlWithRetryProps {
+  username: string;
+  url: string;
+  actionName: string;
+  httpClient: AxiosInstance;
+}
 @Injectable()
 export class ScarpingService {
-    private readonly logger = new Logger(ScarpingService.name)
+  private readonly logger = new Logger(ScarpingService.name);
+  constructor(private readonly retryHttpService: RetryHttpService) {}
 
-    public async getHtmlWithRetry(url: string, actionName: string, httpClient: AxiosInstance): Promise<{data: string, userId: string | undefined} | null> {
-            try {
-                const response = await executeApiActionWithRetry<string>(httpClient, { url: url, method: 'GET' }, actionName);
-                if (response && response.status >= 400) {
-                    this.logger.error(`[${actionName}] Failed to get HTML, received status ${response.status} for URL: ${url}`);
-                    return null;
-                }
-                if(response) {
-                    const userId = response.request?.res?.responseUrl.split('/')[4];
-                    if (!userId) {
-                    this.logger.error(`[${actionName}] Failed to extract userId from URL: ${response.request?.res?.responseUrl}`);
-                    throw new Error(`Failed to extract userId from URL: ${response.request?.res?.responseUrl}`);
-                    }
-                    return {data: response.data, userId: userId }
-                }
-                return null
-    
-            } catch (error) {
-                throw new Error(error)
-            }
-    }
+  public async getHtmlWithRetry(
+    props: GetHtmlWithRetryProps
+  ): Promise<{
+    data: string
+    userId: string
+    httpClient: AxiosInstance
+    jar?: CookieJar
+  } | null> {
+    const { username, url, actionName, httpClient } = props;
+    const result =
+      await this.retryHttpService.executeApiActionWithRetry<string>({
+        httpClient,
+        config: { url: url, method: 'GET' },
+        username,
+        actionName,
+      });
+    if (!result) return null;
 
-    loadHtml(html: string): cheerio.CheerioAPI {
-        return cheerio.load(html);
+    const { response, httpClient: updatedHttpClient, jar } = result;
+    if (response && response.status >= 400) {
+      this.logger.error(
+        `[${actionName}] Failed to get HTML, received status ${response.status} for URL: ${url}`
+      );
+      return null;
     }
+    const userId = response.request?.res?.responseUrl.split('/')[4];
+    if (!userId) {
+      this.logger.error(
+        `[${actionName}] Failed to extract userId from URL: ${response.request?.res?.responseUrl}`
+      );
+      throw new Error(
+        `Failed to extract userId from URL: ${response.request?.res?.responseUrl}`
+      );
+    }
+    return { data: response.data, userId, httpClient: updatedHttpClient, jar };
+  }
 
-    getHtmlElement(html: cheerio.CheerioAPI, selector: string) {
-        if (!html) {
-            throw new Error('HTML not loaded');
-        }
-        return html(selector);
-    }
+  loadHtml(html: string): cheerio.CheerioAPI {
+    return cheerio.load(html);
+  }
 
-    //Selector is AnyNode type but it`s not available to import
-    getHtmlAttribute(html: cheerio.CheerioAPI, selector: any, attribute: string) {
-        if (!html) {
-            throw new Error('HTML not loaded');
-        }
-        return html(selector).attr(attribute);
+  getHtmlElement(html: cheerio.CheerioAPI, selector: string) {
+    if (!html) {
+      throw new Error('HTML not loaded');
     }
+    return html(selector);
+  }
+
+  //Selector is AnyNode type but it`s not available to import
+  getHtmlAttribute(html: cheerio.CheerioAPI, selector: any, attribute: string) {
+    if (!html) {
+      throw new Error('HTML not loaded');
+    }
+    return html(selector).attr(attribute);
+  }
 }

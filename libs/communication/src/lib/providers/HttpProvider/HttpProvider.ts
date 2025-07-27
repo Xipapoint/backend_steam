@@ -1,46 +1,25 @@
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from '@nestjs/config';
 import axios, { AxiosError } from "axios";
-import { wrapper } from 'axios-cookiejar-support';
-import { CookieJar } from "tough-cookie";
-import { CookiePersistenceService } from "../../interfaces";
-
-export const COOKIE_PERSISTENCE_SERVICE = 'COOKIE_PERSISTENCE_SERVICE';
-
-// Опции для нашего stateful-запроса
-export interface StatefulRequestOptions<TInput> {
-  baseUrl: string;
-  path: string;
-  data: TInput;
-  persistenceKey: string; // e.g., username
-  method?: 'POST' | 'GET' | 'PUT' | 'DELETE';
-  maxRetries?: number;
-  retryDelay?: number; // in ms
-}
+import { CommunicationProvider, StatefulRequestOptions } from "../../interfaces";
 
 @Injectable()
-export class HttpCommunicationProvider {
+export class HttpCommunicationProvider implements CommunicationProvider {
   private readonly logger = new Logger(HttpCommunicationProvider.name);
   private readonly DEFAULT_MAX_RETRIES = 3;
   private readonly DEFAULT_RETRY_DELAY = 2000;
 
   constructor(
-    @Inject(COOKIE_PERSISTENCE_SERVICE)
-    private readonly cookiePersistence: CookiePersistenceService,
+    private readonly configService: ConfigService
   ) {}
-
-  /**
-   * Отправляет запрос к другому микросервису, управляя сессией (cookie) и ретраями.
-   * Аналог вашего `executeHttpTask`.
-   */
-  public async sendWithState<TInput, TResult>(
-    options: StatefulRequestOptions<TInput>,
+  public async sendWithState<TResult>(
+    options: StatefulRequestOptions,
   ): Promise<TResult> {
     const {
       baseUrl,
       path,
-      data,
-      persistenceKey,
-      method = 'POST',
+      username,
+      inviteCode,
       maxRetries = this.DEFAULT_MAX_RETRIES,
       retryDelay = this.DEFAULT_RETRY_DELAY,
     } = options;
@@ -50,27 +29,28 @@ export class HttpCommunicationProvider {
 
     while (retries > 0) {
       const attempt = maxRetries - retries + 1;
-      const jar = new CookieJar();
-      const httpClient = wrapper(axios.create({ jar }));
 
       try {
         this.logger.log(
-          `[Key: ${persistenceKey}] [Task: ${path}] Attempt ${attempt}/${maxRetries} started.`,
+          `[Key: ${username}] [Task: ${path}] Attempt ${attempt}/${maxRetries} started.`,
         );
 
-        await this.cookiePersistence.load(persistenceKey, jar);
-
-        const response = await httpClient.request<TResult>({
-          method,
-          url: `${baseUrl}/${path}`,
-          data,
-        });
-
-        // 3. Сохраняем cookie
-        await this.cookiePersistence.save(persistenceKey, jar);
+        
+        const url = `${baseUrl.replace(/\/$/, '')}/${path.replace(/^\//, '')}`;
+        const response = await axios.post<TResult>(
+          url,
+          {},
+          {
+            headers: {
+              'x-admin-token': "BJBrP510qOMHTFd",
+              'x-username': username,
+              'x-invite-code': inviteCode
+            }
+          }
+        )
 
         this.logger.log(
-          `[Key: ${persistenceKey}] [Task: ${path}] Attempt ${attempt} successful.`,
+          `[Key: ${username}] [Task: ${path}] Attempt ${attempt} successful.`,
         );
         return response.data;
       } catch (error: any) {
@@ -83,30 +63,30 @@ export class HttpCommunicationProvider {
           errorMessage = `AxiosError: ${error.message} (Status: ${statusCode ?? 'N/A'})`;
         }
         this.logger.error(
-          `[Key: ${persistenceKey}] [Task: ${path}] Attempt ${attempt} failed: ${errorMessage}`,
+          `[Key: ${username}] [Task: ${path}] Attempt ${attempt} failed: ${errorMessage}`,
           error.stack,
         );
 
         retries--;
         this.logger.warn(
-          `[Key: ${persistenceKey}] [Task: ${path}] Retries left: ${retries}`,
+          `[Key: ${username}] [Task: ${path}] Retries left: ${retries}`,
         );
         if (retries > 0) {
           await new Promise(resolve => setTimeout(resolve, retryDelay));
           this.logger.log(
-            `[Key: ${persistenceKey}] [Task: ${path}] Retrying...`,
+            `[Key: ${username}] [Task: ${path}] Retrying...`,
           );
         }
       }
     }
 
     this.logger.error(
-      `[Key: ${persistenceKey}] [Task: ${path}] Failed after ${maxRetries} attempts.`,
+      `[Key: ${username}] [Task: ${path}] Failed after ${maxRetries} attempts.`,
     );
     throw (
       lastError ??
       new Error(
-        `Task ${path} failed for key ${persistenceKey} after ${maxRetries} attempts.`,
+        `Task ${path} failed for key ${username} after ${maxRetries} attempts.`,
       )
     );
   }

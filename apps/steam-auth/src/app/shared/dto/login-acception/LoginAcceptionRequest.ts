@@ -1,2 +1,3 @@
-import { BaseLoginRequest } from '../../../../../../../libs/nestjs/src/lib/shared/dto/auth/BaseLoginRequest';
-export type LoginAcceptionRequest = BaseLoginRequest
+import { BaseLoginRequest, Password } from "../BaseLoginRequest";
+
+export type LoginAcceptionRequest = BaseLoginRequest & Password

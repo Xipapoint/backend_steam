@@ -1,0 +1,24 @@
+{
+  "name": "database",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/database/src",
+  "projectType": "library",
+  "tags": [],
+  "// targets": "to see all targets run: nx show project database --web",
+  "targets": {
+    "typeorm-generate-migration": {
+      "command": "ts-node -P ./tsconfig.lib.json -r tsconfig-paths/register ../../tools/typeorm.custom-cli.ts migration:generate -d ../../apps/{args.projectName}/src/data-source.ts ../../apps/{args.projectName}/src/app/{args.module}/migrations/{args.name}",
+      "options": {
+        "cwd": "{projectRoot}"
+      },
+      "cache": false
+    },
+    "typeorm-run-migration": {
+      "command": "ts-node -P ./tsconfig.lib.json -r tsconfig-paths/register ../../tools/typeorm.custom-cli.ts migration:run -d ../../apps/{args.projectName}/src/data-source.ts",
+      "options": {
+        "cwd": "{projectRoot}"
+      },
+      "cache": false
+    }
+  }
+}
