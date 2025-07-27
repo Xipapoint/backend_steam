@@ -4,4 +4,4 @@ services:
     ports:
       - 5432:5432
     environment:
-      POSTGRES_PASSWORD: IstrMart0231/
+      POSTGRES_PASSWORD: password

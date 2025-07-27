@@ -8,7 +8,7 @@ export const DBConfig: DataSourceOptions = {
     host: 'localhost',
     port: 5432,
     username: 'postgres',
-    password: 'IstrMart0231/',
+    password: 'password',
     database: 'postgres',
     entities: Object.values(entities),
     migrations: Object.values(migrations),
