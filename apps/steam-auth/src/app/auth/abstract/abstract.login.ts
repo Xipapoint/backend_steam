@@ -1,7 +1,7 @@
 import * as puppeteer from 'puppeteer';
 import { PuppeteerService } from '../../puppeteer/puppeteer.service';
 import { TASK_NAMES } from '../../shared/enums';
-import { BaseLoginRequest } from '../../shared/dto/BaseLoginRequest';
+import { LoginRequest } from '../../shared/dto/BaseLoginRequest';
 import { Injectable } from '@nestjs/common';
 
 export interface LoginOptions {
@@ -9,7 +9,7 @@ export interface LoginOptions {
 }
 
 interface ExecuteParams<T, K> {
-    controllerCallback: (page: puppeteer.Page, parsedBody: T, options: LoginOptions) => Promise<K>,
+    controllerCallback: (page: puppeteer.Page, parsedBody: T, options?: LoginOptions) => Promise<K>,
     parsedBody: T,
     taskName: TASK_NAMES,
     loadCookiesFn?: (page: puppeteer.Page, username: string) => Promise<void>,
@@ -22,7 +22,7 @@ interface ExecuteParams<T, K> {
 export class AbstractLogin {
     constructor(private readonly puppeteerService: PuppeteerService){}
 
-    async execute<T extends BaseLoginRequest, K>(
+    async execute<T extends LoginRequest, K>(
         {
             controllerCallback,
             parsedBody,

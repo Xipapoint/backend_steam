@@ -207,7 +207,7 @@ describe('SteamAuthController', () => {
             };
             const mockRes = { send: jest.fn() } as unknown as Response;
 
-            await controller.loginUserWithCookies(parsedData, mockRes);
+            await controller.loginWithCookies(parsedData, mockRes);
 
             expect(httpCommunicationProvider.sendWithState).toHaveBeenCalledWith({
                 baseUrl: 'http://trade-service.test',

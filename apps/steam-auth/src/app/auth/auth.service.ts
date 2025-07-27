@@ -5,9 +5,9 @@ import { User } from './entities';
 import { RequestTimeout } from '@backend/nestjs';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { LoginRequest } from '../shared/dto/login/LoginRequestDTO';
-import { LoginSteamGuardRequest } from '../shared/dto/login-steamguard/LoginSteamGuardRequest';
 import { LoginOptions } from './abstract/abstract.login';
+import { LoginRequest } from '../shared/dto/BaseLoginRequest';
+import { LoginWithCodeRequest } from '../shared/dto/login-steamguard/LoginSteamGuardRequest';
 
 const URLS = {
   steamLogin: 'https://steamcommunity.com/login/home/?goto=',
@@ -222,7 +222,7 @@ public async login(
 
   public async loginWithSteamGuardCode(
     page: puppeteer.Page,
-    data: LoginSteamGuardRequest,
+    data: LoginWithCodeRequest,
     // steamGuardCode: string,
     // username: string,
     // password: string,

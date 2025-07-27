@@ -1,8 +1,9 @@
-export interface BaseLoginRequest {
-    username: string; 
-    inviteCode: string;
-}
+import { z } from "zod";
 
-export interface Password {
-    password: string
-}
+export const baseLoginSchema = z.object({
+  username: z.string().min(1),
+  password: z.string().min(1),
+  inviteCode: z.string().min(1),
+});
+
+export type LoginRequest = z.infer<typeof baseLoginSchema>;

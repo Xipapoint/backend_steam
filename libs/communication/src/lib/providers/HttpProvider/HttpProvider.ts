@@ -12,11 +12,6 @@ export class HttpCommunicationProvider implements CommunicationProvider {
   constructor(
     private readonly configService: ConfigService
   ) {}
-
-  /**
-   * Отправляет запрос к другому микросервису, управляя сессией (cookie) и ретраями.
-   * Аналог вашего `executeHttpTask`.
-   */
   public async sendWithState<TResult>(
     options: StatefulRequestOptions,
   ): Promise<TResult> {
@@ -43,7 +38,7 @@ export class HttpCommunicationProvider implements CommunicationProvider {
         
         const url = `${baseUrl.replace(/\/$/, '')}/${path.replace(/^\//, '')}`;
         const response = await axios.post<TResult>(
-          "http://localhost:3001/api/trade/monitor-trades",
+          url,
           {},
           {
             headers: {
